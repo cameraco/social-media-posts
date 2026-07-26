@@ -1,0 +1,14 @@
+{
+  "name": "Social Media Posts",
+  "short_name": "Social Posts",
+  "description": "Take photos of customers and gear that auto-upload with a caption, ready to post.",
+  "start_url": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0b0d10",
+  "theme_color": "#0b0d10",
+  "icons": [
+    { "src": "icon.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
