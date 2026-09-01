@@ -193,6 +193,10 @@
       <input id="postName" type="text" autocomplete="off" autocapitalize="words" enterkeyhint="next" placeholder="e.g. Alyssa, or Canon EOS R6 V">
     </div>
     <div class="field">
+      <label for="empNumber">Your employee #</label>
+      <input id="empNumber" type="text" inputmode="numeric" autocapitalize="characters" enterkeyhint="next" placeholder="Your employee number">
+    </div>
+    <div class="field">
       <label for="reason">Caption / reason for the post</label>
       <textarea id="reason" enterkeyhint="done" placeholder="e.g. Alyssa stopped by during our Spring Sales Event and picked up an awesome new Sony camera setup! 📸 …"></textarea>
     </div>
@@ -244,8 +248,8 @@ let facing = "environment";           // back camera by default
 let usingFallback = false;
 let count = 0;
 const items = [];                     // {id, url, status}
-let sessionFolder = "";               // e.g. "Alyssa — 2026-07-26 14-30-05"
-let person = { name:"", reason:"" };
+let sessionFolder = "";               // e.g. "Alyssa — Emp 12 — 2026-07-26 14-30-05"
+let person = { name:"", emp:"", reason:"" };
 
 const $ = id => document.getElementById(id);
 const preview   = $("preview");
@@ -357,7 +361,7 @@ function setItemStatus(item, status, blob){
 function uploadCaption(){
   if (!authReady) return setTimeout(uploadCaption, 600);
   const ref = storage.ref(ROOT + sessionFolder + "/post.json");
-  const payload = JSON.stringify({ name: person.name, reason: person.reason, submittedAt: new Date().toISOString() });
+  const payload = JSON.stringify({ name: person.name, emp: person.emp, reason: person.reason, submittedAt: new Date().toISOString() });
   ref.putString(payload, "raw", { contentType:"application/json" })
      .catch(err => console.error("caption upload failed", err));
 }
@@ -416,13 +420,15 @@ function stamp(d){
 }
 // strip characters that don't belong in a storage path; collapse spaces
 function clean(s){ return (s||"").replace(/[^\p{L}\p{N}\s'-]/gu,"").replace(/\s+/g," ").trim(); }
+// employee #: also allow # . _  but never "/" or the "—" folder delimiter
+function cleanRef(s){ return (s||"").replace(/[^\p{L}\p{N}\s#._-]/gu,"").replace(/\s+/g," ").trim(); }
 
 function startSession(){
   resetPhotos();                       // fresh batch for the new post
   $("doneScreen").classList.remove("show");
-  // folder delimiter is " — " (em dash); clean() strips it from the name
-  sessionFolder = clean(person.name) + " — " + stamp(new Date());
-  $("whoText").textContent = person.name;
+  // folder delimiter is " — " (em dash); clean()/cleanRef() strip it from inputs
+  sessionFolder = clean(person.name) + " — Emp " + person.emp + " — " + stamp(new Date());
+  $("whoText").textContent = person.name + " · Emp " + person.emp;
   $("namePill").style.display = "flex";
   $("nameScreen").style.display = "none";
   uploadCaption();
@@ -446,7 +452,7 @@ function finishSession(){
   $("namePill").style.display = "none";
   $("submitPill").style.display = "none";
   const uploading = items.filter(i => i.status === "up").length;
-  let msg = count + (count === 1 ? " photo" : " photos") + " sent for “" + person.name + "”.";
+  let msg = count + (count === 1 ? " photo" : " photos") + " sent for “" + person.name + "” (Emp " + person.emp + ").";
   if (uploading) msg += " " + uploading + " still finishing — keep the app open a few more seconds.";
   $("doneSummary").textContent = msg;
   $("doneScreen").classList.add("show");
@@ -458,22 +464,24 @@ function showNameEntry(){
   $("namePill").style.display = "none";
   // always start blank — each post is fresh
   $("postName").value = "";
+  $("empNumber").value = "";
   $("reason").value = "";
   validateFields();
   $("nameScreen").style.display = "flex";
 }
 
 function validateFields(){
-  const ok = clean($("postName").value) && $("reason").value.trim();
+  const ok = clean($("postName").value) && cleanRef($("empNumber").value) && $("reason").value.trim();
   $("startBtn").disabled = !ok;
   return ok;
 }
 
 function commitFields(){
   person.name   = clean($("postName").value);
+  person.emp    = cleanRef($("empNumber").value);
   person.reason = $("reason").value.trim();
-  if (!person.name || !person.reason){
-    $("nameErr").textContent = "Please enter a name (or gear) and a caption for the post.";
+  if (!person.name || !person.emp || !person.reason){
+    $("nameErr").textContent = "Please enter a name (or gear), your employee #, and a caption for the post.";
     return;
   }
   $("nameErr").textContent = "";
@@ -481,8 +489,10 @@ function commitFields(){
 }
 
 $("postName").addEventListener("input", validateFields);
+$("empNumber").addEventListener("input", validateFields);
 $("reason").addEventListener("input", validateFields);
-$("postName").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); $("reason").focus(); } });
+$("postName").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); $("empNumber").focus(); } });
+$("empNumber").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); $("reason").focus(); } });
 $("startBtn").onclick = commitFields;
 $("namePill").onclick = showNameEntry;
 
