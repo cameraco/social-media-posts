@@ -276,15 +276,19 @@ function setStatus(state) {
 }
 
 // ── Handle photo from native camera ──────────────────────────────────────────
+// Photos are held locally until submit — so the folder can be named with
+// the customer name and employee number once we know them.
+let sessionTimestamp = ""; // set on first photo, used in folder name at submit
+
 function handlePhoto(file) {
-  // Create session folder on first photo
-  if (!sessionFolder) {
-    sessionFolder = "Session — " + stamp(new Date());
+  if (!sessionTimestamp) {
+    sessionTimestamp = stamp(new Date());
   }
 
   const id       = Date.now() + "-" + Math.random().toString(36).slice(2, 7);
   const localUrl = URL.createObjectURL(file);
-  const item     = { id, url: localUrl, status: "up", _blob: file };
+  // status "pending" = waiting for submit before upload starts
+  const item     = { id, url: localUrl, status: "pending", _blob: file };
   items.unshift(item);
   count++;
 
@@ -306,13 +310,13 @@ function handlePhoto(file) {
   $("detailsPill").style.display = "flex";
 
   renderGrid();
-  uploadPhoto(item);
 }
 
-function uploadPhoto(item) {
-  if (!authReady) return setTimeout(() => uploadPhoto(item), 600);
+function uploadPhoto(item, folder) {
+  if (!authReady) return setTimeout(() => uploadPhoto(item, folder), 600);
+  setItemStatus(item, "up");
   const fileName = stamp(new Date()) + " — " + item.id + ".jpg";
-  const ref  = storage.ref(ROOT + sessionFolder + "/" + fileName);
+  const ref  = storage.ref(ROOT + folder + "/" + fileName);
   const task = ref.put(item._blob, { contentType: "image/jpeg" });
   task.on("state_changed", null,
     err  => { console.error("upload failed", err); setItemStatus(item, "err"); },
@@ -352,7 +356,7 @@ function renderGrid() {
     const cell = document.createElement("div");
     cell.className = "cell";
     cell.innerHTML = `<img src="${item.url}">`;
-    if (item.status === "up") {
+    if (item.status === "pending" || item.status === "up") {
       cell.insertAdjacentHTML("beforeend", `<div class="ring"><div class="spin"></div></div>`);
     } else if (item.status === "ok") {
       cell.insertAdjacentHTML("beforeend", `<div class="state ok">✓</div>`);
@@ -384,31 +388,41 @@ function validateDetails() {
 }
 
 function submitPost() {
-  person.name   = clean($("postName").value);
-  person.emp    = cleanRef($("empNumber").value);
-  person.reason = $("reason").value.trim();
+  person.name   = clean($(“postName”).value);
+  person.emp    = cleanRef($(“empNumber”).value);
+  person.reason = $(“reason”).value.trim();
 
   if (!person.name || !person.emp || !person.reason) {
-    $("detailsErr").textContent = "Please fill in all fields before submitting.";
+    $(“detailsErr”).textContent = “Please fill in all fields before submitting.”;
     return;
   }
-  $("detailsErr").textContent = "";
+  $(“detailsErr”).textContent = “”;
+
+  // Build folder name now that we know the customer and employee
+  // e.g. “Alyssa — Emp 42 — 2024-06-01 10-30-00”
+  sessionFolder = person.name + “ — Emp “ + person.emp + “ — “ + sessionTimestamp;
+
+  // Kick off uploads for all pending photos
+  items.forEach(item => {
+    if (item.status === “pending”) uploadPhoto(item, sessionFolder);
+  });
+
   uploadCaption();
 
-  $("detailsScreen").style.display = "none";
-  const uploading = items.filter(i => i.status === "up").length;
-  let msg = count + (count === 1 ? " photo" : " photos") + " sent for “" + person.name + "” (Emp " + person.emp + ").";
-  if (uploading) msg += " " + uploading + " still uploading — keep the app open a moment.";
-  $("doneSummary").textContent = msg;
-  $("doneScreen").classList.add("show");
+  $(“detailsScreen”).style.display = “none”;
+  let msg = count + (count === 1 ? “ photo” : “ photos”) + “ sent for “” + person.name + “” (Emp “ + person.emp + “).”;
+  msg += “ Keep the app open a moment while they upload.”;
+  $(“doneSummary”).textContent = msg;
+  $(“doneScreen”).classList.add(“show”);
 }
 
 // ── Reset ─────────────────────────────────────────────────────────────────────
 function resetAll() {
-  items.length  = 0;
-  count         = 0;
-  sessionFolder = "";
-  person        = { name:"", emp:"", reason:"" };
+  items.length      = 0;
+  count             = 0;
+  sessionFolder     = "";
+  sessionTimestamp  = "";
+  person            = { name:"", emp:"", reason:"" };
 
   $("lastThumb").removeAttribute("src");
   $("countBadge").style.display  = "none";
