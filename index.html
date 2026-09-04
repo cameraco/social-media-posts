@@ -148,7 +148,8 @@
   #tapOverlay { position:absolute; inset:0; z-index:10; display:flex;
     flex-direction:column; align-items:center; justify-content:center;
     gap:20px; background:rgba(0,0,0,.7); backdrop-filter:blur(4px);
-    cursor:pointer; -webkit-user-select:none; user-select:none; }
+    cursor:pointer; -webkit-user-select:none; user-select:none;
+    border:none; padding:0; width:100%; appearance:none; -webkit-appearance:none; }
   #tapOverlay .tap-icon { font-size:64px; line-height:1; }
   #tapOverlay .tap-label { color:#fff; font-size:18px; font-weight:600;
     text-align:center; max-width:260px; line-height:1.4; }
@@ -183,11 +184,11 @@
     </div>
 
     <!-- Tap-to-start overlay: shown on load; dismissed on first tap (iOS gesture fix) -->
-    <div id="tapOverlay">
+    <button id="tapOverlay" type="button">
       <div class="tap-icon">📷</div>
       <div class="tap-label">Tap anywhere to start the camera</div>
       <div class="tap-sub">You may be asked to allow camera access — tap Allow when prompted</div>
-    </div>
+    </button>
 
     <!-- Hint: fades after first photo -->
     <div id="hint" class="hidden">📸 Take a photo, then tap Add Details when they leave</div>
@@ -567,9 +568,12 @@ document.addEventListener("visibilitychange", () => {
 (function initCameraStart() {
   const overlay = $("tapOverlay");
 
-  function handleFirstTap() {
+  let tapped = false;
+  function handleFirstTap(e) {
+    if (tapped) return;
+    tapped = true;
+    e.preventDefault();
     overlay.style.display = "none";
-    overlay.removeEventListener("click", handleFirstTap);
     startCamera();
   }
 
@@ -579,15 +583,19 @@ document.addEventListener("visibilitychange", () => {
   const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
                    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 
-  if (isMobile) {
+  function showOverlay() {
+    tapped = false;
     overlay.style.display = "flex";
+    // Listen on both touchend (iOS/Android) and click (desktop fallback)
+    overlay.addEventListener("touchend", handleFirstTap, { passive: false });
     overlay.addEventListener("click", handleFirstTap);
+  }
+
+  if (isMobile) {
+    showOverlay();
   } else {
     overlay.style.display = "none";
-    startCamera().catch(() => {
-      overlay.style.display = "flex";
-      overlay.addEventListener("click", handleFirstTap);
-    });
+    startCamera().catch(() => showOverlay());
   }
 })();
 </script>
