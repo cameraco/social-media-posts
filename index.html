@@ -144,6 +144,17 @@
   #detailsErr { color:var(--err); font-size:13px; min-height:16px; text-align:center; margin:0; }
 
   /* ── Done screen ──────────────────────────────────────────── */
+  /* ── Tap-to-start overlay (iOS gesture fix) ──────────────────── */
+  #tapOverlay { position:absolute; inset:0; z-index:10; display:flex;
+    flex-direction:column; align-items:center; justify-content:center;
+    gap:20px; background:rgba(0,0,0,.7); backdrop-filter:blur(4px);
+    cursor:pointer; -webkit-user-select:none; user-select:none; }
+  #tapOverlay .tap-icon { font-size:64px; line-height:1; }
+  #tapOverlay .tap-label { color:#fff; font-size:18px; font-weight:600;
+    text-align:center; max-width:260px; line-height:1.4; }
+  #tapOverlay .tap-sub { color:rgba(255,255,255,.6); font-size:14px;
+    text-align:center; max-width:260px; line-height:1.4; }
+
   #doneScreen { position:fixed; inset:0; z-index:30; background:var(--bg);
     display:none; flex-direction:column; align-items:center; justify-content:center;
     gap:14px; padding:32px 28px; text-align:center; }
@@ -171,8 +182,15 @@
       <button id="detailsPill">📝 Add Details</button>
     </div>
 
+    <!-- Tap-to-start overlay: shown on load; dismissed on first tap (iOS gesture fix) -->
+    <div id="tapOverlay">
+      <div class="tap-icon">📷</div>
+      <div class="tap-label">Tap anywhere to start the camera</div>
+      <div class="tap-sub">You may be asked to allow camera access — tap Allow when prompted</div>
+    </div>
+
     <!-- Hint: fades after first photo -->
-    <div id="hint">📸 Take a photo, then tap Add Details when they leave</div>
+    <div id="hint" class="hidden">📸 Take a photo, then tap Add Details when they leave</div>
 
     <div id="fallback">
       <p>Tap below to take a photo of the customer. It uploads automatically.</p>
@@ -300,19 +318,28 @@ function setStatus(state) {
 // ── Camera ───────────────────────────────────────────────────────────────────
 async function startCamera() {
   stopCamera();
+  // Check API availability first
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    console.warn("getUserMedia not available");
+    enableFallback();
+    return;
+  }
   try {
     stream = await navigator.mediaDevices.getUserMedia({
       video: { facingMode: facing, width:{ideal:1920}, height:{ideal:1080} },
       audio: false
     });
     preview.srcObject = stream;
+    await preview.play().catch(() => {});
     preview.classList.toggle("mirror", facing === "user");
     usingFallback = false;
     $("fallback").style.display = "none";
     preview.style.display = "block";
     setStatus("camera");
+    // Show hint now that camera is live
+    $("hint").classList.remove("hidden");
   } catch (err) {
-    console.warn("getUserMedia failed, falling back:", err);
+    console.warn("getUserMedia failed, falling back:", err.name, err.message);
     enableFallback();
   }
 }
@@ -365,7 +392,7 @@ function handlePhoto(blob) {
 
   // Show "Add Details" pill + hide hint
   $("detailsPill").style.display = "flex";
-  $("hint").classList.add("hidden");
+  $("hint").style.display = "none";
 
   renderGrid();
   uploadPhoto(item, blob);
@@ -479,7 +506,7 @@ function resetAll() {
   $("lastThumb").removeAttribute("src");
   $("countBadge").style.display  = "none";
   $("detailsPill").style.display = "none";
-  $("hint").classList.remove("hidden");
+  $("hint").style.display = "";
   $("postName").value   = "";
   $("empNumber").value  = "";
   $("reason").value     = "";
@@ -488,6 +515,9 @@ function resetAll() {
 
   renderGrid();
   $("doneScreen").classList.remove("show");
+  // Camera is already running (was never stopped before the done screen),
+  // but restart it to be safe — no need to show the tap overlay again
+  // since camera permission is already granted this session.
   startCamera();
 }
 
@@ -532,7 +562,34 @@ document.addEventListener("visibilitychange", () => {
 });
 
 // ── Go ────────────────────────────────────────────────────────────────────────
-startCamera();   // open camera immediately — no form first
+// iOS Safari requires a user gesture before getUserMedia will work.
+// Show a tap-to-start overlay; the first tap dismisses it and starts the camera.
+(function initCameraStart() {
+  const overlay = $("tapOverlay");
+
+  function handleFirstTap() {
+    overlay.style.display = "none";
+    overlay.removeEventListener("click", handleFirstTap);
+    startCamera();
+  }
+
+  // Always show the tap overlay on mobile to guarantee a user gesture
+  // before calling getUserMedia (required on iOS; safer on Android too).
+  // On desktop, try auto-start and only show overlay if it fails.
+  const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+                   (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+
+  if (isMobile) {
+    overlay.style.display = "flex";
+    overlay.addEventListener("click", handleFirstTap);
+  } else {
+    overlay.style.display = "none";
+    startCamera().catch(() => {
+      overlay.style.display = "flex";
+      overlay.addEventListener("click", handleFirstTap);
+    });
+  }
+})();
 </script>
 
 </body>
