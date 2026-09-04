@@ -159,6 +159,23 @@
       <button id="detailsPill">📝 Add Details</button>
     </div>
 
+    <!-- Install banner — shown only when running in browser, not as installed app -->
+    <div id="installBanner" style="display:none; position:absolute; top:56px; left:12px; right:12px;
+      background:#1a1f2b; border:1px solid #2f7bff; border-radius:14px; padding:14px 16px;
+      font-size:13px; line-height:1.5; color:#fff; z-index:6; text-align:center;">
+      <div style="font-size:20px; margin-bottom:6px;">📲 Install for best experience</div>
+      <div style="color:#8a929c;">
+        <strong style="color:#fff;">iPhone:</strong> Tap the share button
+        <span style="font-size:16px;">⎋</span> then <strong style="color:#fff;">"Add to Home Screen"</strong><br>
+        <strong style="color:#fff;">Android:</strong> Tap ⋮ menu then <strong style="color:#fff;">"Add to Home screen"</strong>
+      </div>
+      <button onclick="this.parentElement.style.display='none'"
+        style="margin-top:10px; background:none; border:1px solid #2a2f37; border-radius:8px;
+        color:#8a929c; font-size:12px; padding:6px 14px; cursor:pointer;">
+        Dismiss
+      </button>
+    </div>
+
     <div id="readyIcon">📷</div>
     <div id="readyLabel">Ready to shoot</div>
     <div id="readyHint">Press the shutter button below to open the camera and take a photo</div>
@@ -477,6 +494,23 @@ $("empNumber").addEventListener("input", validateDetails);
 $("reason").addEventListener("input", validateDetails);
 $("postName").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); $("empNumber").focus(); } });
 $("empNumber").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); $("reason").focus(); } });
+
+// ── Install banner ─────────────────────────────────────────────────────────────
+// Show the "Add to Home Screen" prompt whenever the app is running inside a
+// regular browser tab (iOS Safari OR Android Chrome) rather than as an
+// installed PWA.  In standalone / TWA mode the page does NOT reload when the
+// user takes a photo, so the app works correctly without the banner.
+(function() {
+  const isStandalone =
+    window.navigator.standalone === true ||                  // iOS Safari PWA
+    window.matchMedia("(display-mode: standalone)").matches; // Android / Chrome PWA
+  if (!isStandalone) {
+    // Small delay so the page renders first
+    setTimeout(function() {
+      $("installBanner").style.display = "block";
+    }, 800);
+  }
+})();
 </script>
 
 </body>
