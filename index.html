@@ -24,17 +24,11 @@
   body { display:flex; flex-direction:column;
     padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
 
-  /* ── Camera stage ─────────────────────────────────────────── */
-  #stage { position:relative; flex:1; min-height:0; background:#000; overflow:hidden;
-    display:flex; align-items:center; justify-content:center; }
-  #preview { width:100%; height:100%; object-fit:cover; }
-  #preview.mirror { transform:scaleX(-1); }
+  /* ── Main stage ─────────────────────────────────────────── */
+  #stage { position:relative; flex:1; min-height:0; background:var(--bg); overflow:hidden;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; }
 
-  #fallback { display:none; position:absolute; inset:0; flex-direction:column;
-    align-items:center; justify-content:center; gap:16px; padding:24px; text-align:center; }
-  #fallback p { color:var(--muted); max-width:320px; line-height:1.5; margin:0; }
-
-  /* Top bar */
+  /* Status bar */
   #topBar { position:absolute; top:12px; left:12px; right:12px; z-index:5;
     display:flex; align-items:center; gap:8px; }
   #banner { background:rgba(0,0,0,.55); backdrop-filter:blur(8px); border-radius:999px;
@@ -45,24 +39,20 @@
   .dot.on { background:var(--ok); }
   .dot.off { background:var(--err); }
 
-  /* "Add Details" pill — appears after first photo is taken */
+  /* "Add Details" pill */
   #detailsPill { background:var(--accent); border:none; border-radius:999px;
     color:#fff; padding:8px 16px; font-size:14px; font-weight:700;
     display:none; align-items:center; gap:6px; flex-shrink:0; white-space:nowrap; }
   #detailsPill:active { filter:brightness(.88); }
 
-  /* Flash */
-  #flash { position:absolute; inset:0; background:#fff; opacity:0; pointer-events:none; }
-  #flash.fire { animation:flash .28s ease-out; }
-  @keyframes flash { 0%{opacity:.9} 100%{opacity:0} }
+  /* Ready screen content */
+  #readyIcon { font-size:80px; line-height:1; }
+  #readyLabel { font-size:20px; font-weight:700; color:#fff; text-align:center; }
+  #readyHint { font-size:14px; color:var(--muted); text-align:center; max-width:280px; line-height:1.5; }
 
-  /* Hint overlay — fades out after first photo */
-  #hint { position:absolute; bottom:calc(100px + env(safe-area-inset-bottom)); left:50%;
-    transform:translateX(-50%); background:rgba(0,0,0,.6); backdrop-filter:blur(8px);
-    border-radius:12px; padding:10px 18px; font-size:14px; color:rgba(255,255,255,.85);
-    text-align:center; pointer-events:none; transition:opacity .4s ease;
-    white-space:nowrap; }
-  #hint.hidden { opacity:0; }
+  /* Last photo preview in stage */
+  #lastPreview { width:200px; height:200px; border-radius:20px; object-fit:cover;
+    display:none; border:3px solid var(--ok); }
 
   /* ── Bottom controls ──────────────────────────────────────── */
   #controls { display:flex; align-items:center; justify-content:space-between;
@@ -77,10 +67,15 @@
   .badge { position:absolute; top:-6px; right:-6px; min-width:20px; height:20px; padding:0 5px;
     border-radius:10px; background:var(--accent); color:#fff; font-size:12px; font-weight:700;
     display:flex; align-items:center; justify-content:center; }
+
+  /* Shutter button */
   #shutter { width:74px; height:74px; border-radius:50%; border:5px solid #fff; background:#fff;
-    box-shadow:0 0 0 4px rgba(255,255,255,.18); cursor:pointer; }
+    box-shadow:0 0 0 4px rgba(255,255,255,.18); cursor:pointer; display:flex;
+    align-items:center; justify-content:center; font-size:28px; }
   #shutter:active { transform:scale(.92); }
-  #shutter:disabled { opacity:.4; }
+
+  /* Hidden file input — the real camera trigger */
+  #cameraInput { display:none; }
 
   /* ── Gallery sheet ────────────────────────────────────────── */
   #sheet { position:fixed; inset:0; background:var(--bg); z-index:20; transform:translateY(100%);
@@ -119,8 +114,6 @@
     width:100%; max-width:340px; cursor:pointer; }
   .btn-ghost:active { background:var(--panel); }
 
-  #hiddenFile { display:none; }
-
   /* ── Details screen ───────────────────────────────────────── */
   #detailsScreen { position:fixed; inset:0; z-index:30; background:var(--bg); overflow-y:auto;
     display:none; flex-direction:column; align-items:center;
@@ -144,18 +137,6 @@
   #detailsErr { color:var(--err); font-size:13px; min-height:16px; text-align:center; margin:0; }
 
   /* ── Done screen ──────────────────────────────────────────── */
-  /* ── Tap-to-start overlay (iOS gesture fix) ──────────────────── */
-  #tapOverlay { position:absolute; inset:0; z-index:10; display:flex;
-    flex-direction:column; align-items:center; justify-content:center;
-    gap:20px; background:rgba(0,0,0,.7); backdrop-filter:blur(4px);
-    cursor:pointer; -webkit-user-select:none; user-select:none;
-    border:none; padding:0; width:100%; appearance:none; -webkit-appearance:none; }
-  #tapOverlay .tap-icon { font-size:64px; line-height:1; }
-  #tapOverlay .tap-label { color:#fff; font-size:18px; font-weight:600;
-    text-align:center; max-width:260px; line-height:1.4; }
-  #tapOverlay .tap-sub { color:rgba(255,255,255,.6); font-size:14px;
-    text-align:center; max-width:260px; line-height:1.4; }
-
   #doneScreen { position:fixed; inset:0; z-index:30; background:var(--bg);
     display:none; flex-direction:column; align-items:center; justify-content:center;
     gap:14px; padding:32px 28px; text-align:center; }
@@ -169,34 +150,21 @@
 </head>
 <body>
 
-  <!-- ── Camera view (initial screen) ── -->
+  <!-- ── Main screen ── -->
   <div id="stage">
-    <video id="preview" playsinline autoplay muted></video>
-    <div id="flash"></div>
-
     <div id="topBar">
       <div id="banner">
         <span class="dot on" id="statusDot"></span>
-        <span id="statusText">Starting…</span>
+        <span id="statusText">Ready</span>
       </div>
-      <!-- Appears after first photo is taken -->
       <button id="detailsPill">📝 Add Details</button>
     </div>
 
-    <!-- Tap-to-start overlay: shown on load; dismissed on first tap (iOS gesture fix) -->
-    <button id="tapOverlay" type="button">
-      <div class="tap-icon">📷</div>
-      <div class="tap-label">Tap anywhere to start the camera</div>
-      <div class="tap-sub">You may be asked to allow camera access — tap Allow when prompted</div>
-    </button>
+    <div id="readyIcon">📷</div>
+    <div id="readyLabel">Ready to shoot</div>
+    <div id="readyHint">Press the shutter button below to open the camera and take a photo</div>
 
-    <!-- Hint: fades after first photo -->
-    <div id="hint" class="hidden">📸 Take a photo, then tap Add Details when they leave</div>
-
-    <div id="fallback">
-      <p>Tap below to take a photo of the customer. It uploads automatically.</p>
-      <button class="btn" id="fallbackBtn">📷 Take Photo</button>
-    </div>
+    <img id="lastPreview" alt="last photo">
   </div>
 
   <div id="controls">
@@ -206,16 +174,15 @@
         <span class="badge" id="countBadge" style="display:none">0</span>
       </div>
     </div>
-    <button id="shutter" aria-label="Take photo"></button>
-    <div class="side">
-      <button class="iconbtn" id="flipBtn" title="Switch camera">⟳</button>
-    </div>
+    <!-- Shutter: triggers native camera via file input -->
+    <button id="shutter" aria-label="Take photo">📸</button>
+    <div class="side"><!-- spacer --></div>
   </div>
 
-  <!-- Native camera fallback -->
-  <input type="file" id="hiddenFile" accept="image/*" capture="environment">
+  <!-- Native camera input — this always works on iOS and Android -->
+  <input type="file" id="cameraInput" accept="image/*" capture="environment">
 
-  <!-- ── Details screen (filled after customer leaves) ── -->
+  <!-- ── Details screen ── -->
   <div id="detailsScreen">
     <img class="logo" src="icon.png" alt="">
     <h1>Complete the Post</h1>
@@ -259,12 +226,12 @@
     <div id="grid"><div id="empty">No photos yet. Take one to get started.</div></div>
   </div>
 
-<!-- Firebase (compat build) -->
+<!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
 <script>
-// ── Firebase ────────────────────────────────────────────────────────────────
+// ── Firebase ─────────────────────────────────────────────────────────────────
 const firebaseConfig = {
   apiKey: "AIzaSyBQMG2QKSnCl00jhx6V0Sjg9Vw245jj4xM",
   authDomain: "task-manager-f5d20.firebaseapp.com",
@@ -278,23 +245,18 @@ const auth    = firebase.auth();
 const storage = firebase.storage();
 const ROOT    = "social-media-posts/";
 
-// ── State ────────────────────────────────────────────────────────────────────
+// ── State ─────────────────────────────────────────────────────────────────────
 let authReady     = false;
-let stream        = null;
-let facing        = "environment";   // back camera by default
-let usingFallback = false;
 let count         = 0;
-const items       = [];              // { id, url, status, _blob }
-let sessionFolder = "";              // created on first photo
+const items       = [];
+let sessionFolder = "";
 let person        = { name:"", emp:"", reason:"" };
 
 const $ = id => document.getElementById(id);
-const preview    = $("preview");
-const shutter    = $("shutter");
 const statusDot  = $("statusDot");
 const statusText = $("statusText");
 
-// ── Auth ─────────────────────────────────────────────────────────────────────
+// ── Auth ──────────────────────────────────────────────────────────────────────
 auth.onAuthStateChanged(u => {
   if (u) { authReady = true; setStatus("ready"); }
 });
@@ -305,85 +267,34 @@ auth.signInAnonymously().catch(err => {
 
 function setStatus(state) {
   const map = {
-    ready:  ["on",  "Ready — connected"],
-    camera: ["on",  "Camera ready"],
-    nocam:  ["off", "Camera unavailable — using tap-to-shoot"],
+    ready:  ["on",  "Ready"],
     noauth: ["off", "Offline — check connection"],
-    start:  ["",    "Starting…"]
   };
-  const [cls, txt] = map[state] || map.start;
+  const [cls, txt] = map[state] || ["on", "Ready"];
   statusDot.className = "dot " + cls;
   statusText.textContent = txt;
 }
 
-// ── Camera ───────────────────────────────────────────────────────────────────
-async function startCamera() {
-  stopCamera();
-  // Check API availability first
-  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    console.warn("getUserMedia not available");
-    enableFallback();
-    return;
-  }
-  try {
-    stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: facing, width:{ideal:1920}, height:{ideal:1080} },
-      audio: false
-    });
-    preview.srcObject = stream;
-    await preview.play().catch(() => {});
-    preview.classList.toggle("mirror", facing === "user");
-    usingFallback = false;
-    $("fallback").style.display = "none";
-    preview.style.display = "block";
-    setStatus("camera");
-    // Show hint now that camera is live
-    $("hint").classList.remove("hidden");
-  } catch (err) {
-    console.warn("getUserMedia failed, falling back:", err.name, err.message);
-    enableFallback();
-  }
-}
-
-function stopCamera() {
-  if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
-}
-
-function enableFallback() {
-  usingFallback = true;
-  preview.style.display = "none";
-  $("fallback").style.display = "flex";
-  $("flipBtn").style.visibility = "hidden";
-  setStatus("nocam");
-}
-
-// ── Capture ───────────────────────────────────────────────────────────────────
-function captureFromVideo() {
-  if (!preview.videoWidth) return;
-  const c = document.createElement("canvas");
-  c.width  = preview.videoWidth;
-  c.height = preview.videoHeight;
-  const ctx = c.getContext("2d");
-  if (facing === "user") { ctx.translate(c.width, 0); ctx.scale(-1, 1); }
-  ctx.drawImage(preview, 0, 0);
-  $("flash").classList.remove("fire");
-  void $("flash").offsetWidth;
-  $("flash").classList.add("fire");
-  c.toBlob(blob => { if (blob) handlePhoto(blob); }, "image/jpeg", 0.9);
-}
-
-// ── Handle photo ──────────────────────────────────────────────────────────────
-function handlePhoto(blob) {
-  // Create session folder on the very first photo
+// ── Handle photo from native camera ──────────────────────────────────────────
+function handlePhoto(file) {
+  // Create session folder on first photo
   if (!sessionFolder) {
     sessionFolder = "Session — " + stamp(new Date());
   }
 
   const id       = Date.now() + "-" + Math.random().toString(36).slice(2, 7);
-  const localUrl = URL.createObjectURL(blob);
-  const item     = { id, url: localUrl, status: "up" };
+  const localUrl = URL.createObjectURL(file);
+  const item     = { id, url: localUrl, status: "up", _blob: file };
   items.unshift(item);
   count++;
+
+  // Show last photo in stage
+  const prev = $("lastPreview");
+  prev.src = localUrl;
+  prev.style.display = "block";
+  $("readyIcon").style.display = "none";
+  $("readyLabel").textContent = count === 1 ? "1 photo taken" : count + " photos taken";
+  $("readyHint").textContent = "Press shutter again to add more, or tap Add Details when done";
 
   // Update thumbnail + badge
   $("lastThumb").src = localUrl;
@@ -391,32 +302,30 @@ function handlePhoto(blob) {
   badge.style.display = "flex";
   badge.textContent   = count;
 
-  // Show "Add Details" pill + hide hint
+  // Show "Add Details" pill
   $("detailsPill").style.display = "flex";
-  $("hint").style.display = "none";
 
   renderGrid();
-  uploadPhoto(item, blob);
+  uploadPhoto(item);
 }
 
-function uploadPhoto(item, blob) {
-  if (!authReady) return setTimeout(() => uploadPhoto(item, blob), 600);
+function uploadPhoto(item) {
+  if (!authReady) return setTimeout(() => uploadPhoto(item), 600);
   const fileName = stamp(new Date()) + " — " + item.id + ".jpg";
   const ref  = storage.ref(ROOT + sessionFolder + "/" + fileName);
-  const task = ref.put(blob, { contentType: "image/jpeg" });
+  const task = ref.put(item._blob, { contentType: "image/jpeg" });
   task.on("state_changed", null,
-    err => { console.error("upload failed", err); setItemStatus(item, "err", blob); },
-    ()  => { setItemStatus(item, "ok"); }
+    err  => { console.error("upload failed", err); setItemStatus(item, "err"); },
+    ()   => { setItemStatus(item, "ok"); }
   );
 }
 
-function setItemStatus(item, status, blob) {
+function setItemStatus(item, status) {
   item.status = status;
-  item._blob  = blob || item._blob;
   renderGrid();
 }
 
-// ── Upload caption/post metadata ─────────────────────────────────────────────
+// ── Upload post metadata ──────────────────────────────────────────────────────
 function uploadCaption() {
   if (!authReady) return setTimeout(uploadCaption, 600);
   const ref     = storage.ref(ROOT + sessionFolder + "/post.json");
@@ -451,7 +360,7 @@ function renderGrid() {
       const btn = document.createElement("button");
       btn.className   = "retry";
       btn.textContent = "Tap to retry";
-      btn.onclick = () => { setItemStatus(item, "up"); uploadPhoto(item, item._blob); };
+      btn.onclick = () => { setItemStatus(item, "up"); uploadPhoto(item); };
       cell.appendChild(btn);
     }
     grid.appendChild(cell);
@@ -460,14 +369,12 @@ function renderGrid() {
 
 // ── Details form ──────────────────────────────────────────────────────────────
 function showDetails() {
-  stopCamera();
   $("photoSummary").textContent = "📷 " + count + (count === 1 ? " photo ready to send" : " photos ready to send");
   $("detailsScreen").style.display = "flex";
 }
 
 function hideDetails() {
   $("detailsScreen").style.display = "none";
-  startCamera();
 }
 
 function validateDetails() {
@@ -488,16 +395,15 @@ function submitPost() {
   $("detailsErr").textContent = "";
   uploadCaption();
 
-  // Show done screen
   $("detailsScreen").style.display = "none";
   const uploading = items.filter(i => i.status === "up").length;
-  let msg = count + (count === 1 ? " photo" : " photos") + " sent for "" + person.name + "" (Emp " + person.emp + ").";
+  let msg = count + (count === 1 ? " photo" : " photos") + " sent for “" + person.name + "” (Emp " + person.emp + ").";
   if (uploading) msg += " " + uploading + " still uploading — keep the app open a moment.";
   $("doneSummary").textContent = msg;
   $("doneScreen").classList.add("show");
 }
 
-// ── Reset for new post ────────────────────────────────────────────────────────
+// ── Reset ─────────────────────────────────────────────────────────────────────
 function resetAll() {
   items.length  = 0;
   count         = 0;
@@ -507,7 +413,10 @@ function resetAll() {
   $("lastThumb").removeAttribute("src");
   $("countBadge").style.display  = "none";
   $("detailsPill").style.display = "none";
-  $("hint").style.display = "";
+  $("lastPreview").style.display = "none";
+  $("readyIcon").style.display   = "";
+  $("readyLabel").textContent    = "Ready to shoot";
+  $("readyHint").textContent     = "Press the shutter button below to open the camera and take a photo";
   $("postName").value   = "";
   $("empNumber").value  = "";
   $("reason").value     = "";
@@ -516,10 +425,6 @@ function resetAll() {
 
   renderGrid();
   $("doneScreen").classList.remove("show");
-  // Camera is already running (was never stopped before the done screen),
-  // but restart it to be safe — no need to show the tap overlay again
-  // since camera permission is already granted this session.
-  startCamera();
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -531,73 +436,29 @@ function stamp(d) {
 function clean(s)    { return (s||"").replace(/[^\p{L}\p{N}\s'-]/gu, "").replace(/\s+/g, " ").trim(); }
 function cleanRef(s) { return (s||"").replace(/[^\p{L}\p{N}\s#._-]/gu, "").replace(/\s+/g, " ").trim(); }
 
-// ── Wire up controls ──────────────────────────────────────────────────────────
-shutter.onclick          = () => { usingFallback ? $("hiddenFile").click() : captureFromVideo(); };
-$("fallbackBtn").onclick = () => $("hiddenFile").click();
-$("hiddenFile").onchange = e => {
+// ── Wire up ───────────────────────────────────────────────────────────────────
+// Shutter button triggers the native camera input
+$("shutter").addEventListener("click", () => $("cameraInput").click());
+
+$("cameraInput").addEventListener("change", e => {
   const f = e.target.files && e.target.files[0];
   if (f) handlePhoto(f);
-  e.target.value = "";
-};
-$("flipBtn").onclick    = () => { facing = facing === "environment" ? "user" : "environment"; startCamera(); };
-$("galleryBtn").onclick = () => $("sheet").classList.add("open");
-$("closeSheet").onclick = () => $("sheet").classList.remove("open");
+  e.target.value = ""; // reset so same photo can be re-selected if needed
+});
 
-$("detailsPill").onclick = showDetails;
-$("backToCamera").onclick = hideDetails;
-$("submitBtn").onclick   = submitPost;
-$("newUploadBtn").onclick = resetAll;
+$("galleryBtn").addEventListener("click", () => $("sheet").classList.add("open"));
+$("closeSheet").addEventListener("click", () => $("sheet").classList.remove("open"));
+
+$("detailsPill").addEventListener("click", showDetails);
+$("backToCamera").addEventListener("click", hideDetails);
+$("submitBtn").addEventListener("click", submitPost);
+$("newUploadBtn").addEventListener("click", resetAll);
 
 $("postName").addEventListener("input", validateDetails);
 $("empNumber").addEventListener("input", validateDetails);
 $("reason").addEventListener("input", validateDetails);
 $("postName").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); $("empNumber").focus(); } });
 $("empNumber").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); $("reason").focus(); } });
-
-// Pause camera when app is backgrounded
-document.addEventListener("visibilitychange", () => {
-  const inDetails = $("detailsScreen").style.display !== "none";
-  const inDone    = $("doneScreen").classList.contains("show");
-  if (document.hidden) stopCamera();
-  else if (!usingFallback && !inDetails && !inDone) startCamera();
-});
-
-// ── Go ────────────────────────────────────────────────────────────────────────
-// iOS Safari requires a user gesture before getUserMedia will work.
-// Show a tap-to-start overlay; the first tap dismisses it and starts the camera.
-(function initCameraStart() {
-  const overlay = $("tapOverlay");
-
-  let tapped = false;
-  function handleFirstTap(e) {
-    if (tapped) return;
-    tapped = true;
-    e.preventDefault();
-    overlay.style.display = "none";
-    startCamera();
-  }
-
-  // Always show the tap overlay on mobile to guarantee a user gesture
-  // before calling getUserMedia (required on iOS; safer on Android too).
-  // On desktop, try auto-start and only show overlay if it fails.
-  const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
-                   (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-
-  function showOverlay() {
-    tapped = false;
-    overlay.style.display = "flex";
-    // Listen on both touchend (iOS/Android) and click (desktop fallback)
-    overlay.addEventListener("touchend", handleFirstTap, { passive: false });
-    overlay.addEventListener("click", handleFirstTap);
-  }
-
-  if (isMobile) {
-    showOverlay();
-  } else {
-    overlay.style.display = "none";
-    startCamera().catch(() => showOverlay());
-  }
-})();
 </script>
 
 </body>
