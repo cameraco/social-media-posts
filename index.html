@@ -159,23 +159,6 @@
       <button id="detailsPill">📝 Add Details</button>
     </div>
 
-    <!-- Install banner — shown only when running in browser, not as installed app -->
-    <div id="installBanner" style="display:none; position:absolute; top:56px; left:12px; right:12px;
-      background:#1a1f2b; border:1px solid #2f7bff; border-radius:14px; padding:14px 16px;
-      font-size:13px; line-height:1.5; color:#fff; z-index:6; text-align:center;">
-      <div style="font-size:20px; margin-bottom:6px;">📲 Install for best experience</div>
-      <div style="color:#8a929c;">
-        <strong style="color:#fff;">iPhone:</strong> Tap the share button
-        <span style="font-size:16px;">⎋</span> then <strong style="color:#fff;">"Add to Home Screen"</strong><br>
-        <strong style="color:#fff;">Android:</strong> Tap ⋮ menu then <strong style="color:#fff;">"Add to Home screen"</strong>
-      </div>
-      <button onclick="this.parentElement.style.display='none'"
-        style="margin-top:10px; background:none; border:1px solid #2a2f37; border-radius:8px;
-        color:#8a929c; font-size:12px; padding:6px 14px; cursor:pointer;">
-        Dismiss
-      </button>
-    </div>
-
     <div id="readyIcon">📷</div>
     <div id="readyLabel">Ready to shoot</div>
     <div id="readyHint">Press the shutter button below to open the camera and take a photo</div>
@@ -268,6 +251,14 @@ let count         = 0;
 const items       = [];
 let sessionFolder = "";
 let person        = { name:"", emp:"", reason:"" };
+let sessionTimestamp = ""; // set on first photo, used in folder name at submit
+
+// Session ID survives page reloads (iOS Safari reloads when returning from camera)
+let sessionId = "";
+try {
+  sessionId = sessionStorage.getItem("ssid") || (Math.random().toString(36).slice(2) + Date.now());
+  sessionStorage.setItem("ssid", sessionId);
+} catch(e) { sessionId = "local"; }
 
 const $ = id => document.getElementById(id);
 const statusDot  = $("statusDot");
@@ -292,21 +283,128 @@ function setStatus(state) {
   statusText.textContent = txt;
 }
 
-// ── Handle photo from native camera ──────────────────────────────────────────
-// Photos are held locally until submit — so the folder can be named with
-// the customer name and employee number once we know them.
-let sessionTimestamp = ""; // set on first photo, used in folder name at submit
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function pad(n)  { return String(n).padStart(2, "0"); }
+function stamp(d) {
+  return d.getFullYear() + "-" + pad(d.getMonth()+1) + "-" + pad(d.getDate()) + " " +
+         pad(d.getHours()) + "-" + pad(d.getMinutes()) + "-" + pad(d.getSeconds());
+}
+function clean(s)    { return (s||"").replace(/[^\p{L}\p{N}\s'-]/gu, "").replace(/\s+/g, " ").trim(); }
+function cleanRef(s) { return (s||"").replace(/[^\p{L}\p{N}\s#._-]/gu, "").replace(/\s+/g, " ").trim(); }
 
-function handlePhoto(file, dataUrl) {
-  if (!sessionTimestamp) {
-    sessionTimestamp = stamp(new Date());
+// Convert a data URL back to a Blob (for Firebase upload after a page reload)
+function dataUrlToBlob(dataUrl) {
+  try {
+    const [header, b64] = dataUrl.split(",");
+    const mime = header.match(/:(.*?);/)[1];
+    const bin  = atob(b64);
+    const arr  = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+    return new Blob([arr], { type: mime });
+  } catch(e) { return null; }
+}
+
+// ── sessionStorage persistence ────────────────────────────────────────────────
+// iOS Safari reloads the page tab when the user returns from the native camera.
+// We compress each photo and save it to sessionStorage so we can restore it.
+
+function saveSession() {
+  try {
+    const toSave = items.map(i => ({ id: i.id, url: i.url, status: "pending" }));
+    sessionStorage.setItem("photos_" + sessionId, JSON.stringify(toSave));
+    sessionStorage.setItem("ts_" + sessionId, sessionTimestamp);
+  } catch(e) {
+    console.warn("sessionStorage save failed (quota?)", e);
   }
+}
+
+function clearSession() {
+  try {
+    sessionStorage.removeItem("photos_" + sessionId);
+    sessionStorage.removeItem("ts_" + sessionId);
+    // New session ID for the next shoot
+    sessionId = Math.random().toString(36).slice(2) + Date.now();
+    sessionStorage.setItem("ssid", sessionId);
+  } catch(e) {}
+}
+
+function restoreSession() {
+  try {
+    const raw = sessionStorage.getItem("photos_" + sessionId);
+    if (!raw) return;
+    const saved = JSON.parse(raw);
+    if (!saved || !saved.length) return;
+
+    sessionTimestamp = sessionStorage.getItem("ts_" + sessionId) || stamp(new Date());
+
+    saved.forEach(s => {
+      const blob = dataUrlToBlob(s.url);
+      items.push({ id: s.id, url: s.url, status: "pending", _blob: blob });
+    });
+    count = items.length;
+
+    // Restore UI
+    const last = items[0];
+    $("lastPreview").src          = last.url;
+    $("lastPreview").style.display = "block";
+    $("readyIcon").style.display   = "none";
+    $("readyLabel").textContent    = count === 1 ? "1 photo taken" : count + " photos taken";
+    $("readyHint").textContent     = "Press shutter again to add more, or tap Add Details when done";
+    $("lastThumb").src             = last.url;
+    $("countBadge").style.display  = "flex";
+    $("countBadge").textContent    = count;
+    $("detailsPill").style.display = "flex";
+    renderGrid();
+  } catch(e) {
+    console.warn("restoreSession failed", e);
+  }
+}
+
+// ── Compress photo before storing ─────────────────────────────────────────────
+// Shrinks to max 1200 px and re-encodes as JPEG ~75% quality so data URLs fit
+// comfortably in sessionStorage (typically < 400 KB each).
+function compressPhoto(file, callback) {
+  const objectUrl = URL.createObjectURL(file);
+  const img = new Image();
+  img.onload = function() {
+    URL.revokeObjectURL(objectUrl);
+    const MAX = 1200;
+    let w = img.naturalWidth, h = img.naturalHeight;
+    if (w > MAX || h > MAX) {
+      if (w >= h) { h = Math.round(h * MAX / w); w = MAX; }
+      else        { w = Math.round(w * MAX / h); h = MAX; }
+    }
+    const canvas = document.createElement("canvas");
+    canvas.width = w; canvas.height = h;
+    canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+    canvas.toBlob(function(blob) {
+      if (!blob) { callback(file, null); return; } // fallback
+      const reader = new FileReader();
+      reader.onload = function(ev) { callback(blob, ev.target.result); };
+      reader.readAsDataURL(blob);
+    }, "image/jpeg", 0.75);
+  };
+  img.onerror = function() {
+    // If createObjectURL fails, fall back to FileReader on the original file
+    URL.revokeObjectURL(objectUrl);
+    const reader = new FileReader();
+    reader.onload = function(ev) { callback(file, ev.target.result); };
+    reader.readAsDataURL(file);
+  };
+  img.src = objectUrl;
+}
+
+// ── Handle photo from native camera ──────────────────────────────────────────
+function handlePhoto(blob, dataUrl) {
+  if (!sessionTimestamp) sessionTimestamp = stamp(new Date());
 
   const id   = Date.now() + "-" + Math.random().toString(36).slice(2, 7);
-  // Use the data URL for display (universally supported on iOS/Android)
-  const item = { id, url: dataUrl, status: "pending", _blob: file };
+  const item = { id, url: dataUrl, status: "pending", _blob: blob };
   items.unshift(item);
   count++;
+
+  // Persist to sessionStorage so a page reload restores photos
+  saveSession();
 
   // Show last photo in stage
   const prev = $("lastPreview");
@@ -434,6 +532,7 @@ function submitPost() {
 
 // ── Reset ─────────────────────────────────────────────────────────────────────
 function resetAll() {
+  clearSession();             // clear saved photos for this session
   items.length      = 0;
   count             = 0;
   sessionFolder     = "";
@@ -457,29 +556,27 @@ function resetAll() {
   $("doneScreen").classList.remove("show");
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-function pad(n)  { return String(n).padStart(2, "0"); }
-function stamp(d) {
-  return d.getFullYear() + "-" + pad(d.getMonth()+1) + "-" + pad(d.getDate()) + " " +
-         pad(d.getHours()) + "-" + pad(d.getMinutes()) + "-" + pad(d.getSeconds());
-}
-function clean(s)    { return (s||"").replace(/[^\p{L}\p{N}\s'-]/gu, "").replace(/\s+/g, " ").trim(); }
-function cleanRef(s) { return (s||"").replace(/[^\p{L}\p{N}\s#._-]/gu, "").replace(/\s+/g, " ").trim(); }
-
 // ── Wire up ───────────────────────────────────────────────────────────────────
-// Input is inside the label — browser triggers it natively on tap.
 $("cameraInput").addEventListener("change", function() {
   const f = this.files && this.files[0];
   if (!f) return;
-  // Read as data URL — most reliable on iOS Safari
-  const reader = new FileReader();
-  reader.onload = function(ev) {
-    handlePhoto(f, ev.target.result);
-  };
-  reader.readAsDataURL(f);
-  // Reset after a delay so the same photo can be retaken if needed
+  // Compress then store — survives iOS Safari page reload on camera return
+  compressPhoto(f, function(blob, dataUrl) {
+    if (dataUrl) {
+      handlePhoto(blob, dataUrl);
+    } else {
+      // compressPhoto fell back without a dataUrl — use FileReader directly
+      const reader = new FileReader();
+      reader.onload = function(ev) { handlePhoto(f, ev.target.result); };
+      reader.readAsDataURL(f);
+    }
+  });
+  // Reset input value after a delay so the same photo can be retaken
   setTimeout(() => { try { this.value = ""; } catch(e) {} }, 500);
 });
+
+// Restore any photos from before the last page reload
+restoreSession();
 
 $("galleryBtn").addEventListener("click", () => $("sheet").classList.add("open"));
 $("closeSheet").addEventListener("click", () => $("sheet").classList.remove("open"));
@@ -495,22 +592,6 @@ $("reason").addEventListener("input", validateDetails);
 $("postName").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); $("empNumber").focus(); } });
 $("empNumber").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); $("reason").focus(); } });
 
-// ── Install banner ─────────────────────────────────────────────────────────────
-// Show the "Add to Home Screen" prompt whenever the app is running inside a
-// regular browser tab (iOS Safari OR Android Chrome) rather than as an
-// installed PWA.  In standalone / TWA mode the page does NOT reload when the
-// user takes a photo, so the app works correctly without the banner.
-(function() {
-  const isStandalone =
-    window.navigator.standalone === true ||                  // iOS Safari PWA
-    window.matchMedia("(display-mode: standalone)").matches; // Android / Chrome PWA
-  if (!isStandalone) {
-    // Small delay so the page renders first
-    setTimeout(function() {
-      $("installBanner").style.display = "block";
-    }, 800);
-  }
-})();
 </script>
 
 </body>
