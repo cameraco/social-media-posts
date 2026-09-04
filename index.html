@@ -68,13 +68,13 @@
     border-radius:10px; background:var(--accent); color:#fff; font-size:12px; font-weight:700;
     display:flex; align-items:center; justify-content:center; }
 
-  /* Shutter button */
-  #shutter { width:74px; height:74px; border-radius:50%; border:5px solid #fff; background:#fff;
-    box-shadow:0 0 0 4px rgba(255,255,255,.18); cursor:pointer; display:flex;
-    align-items:center; justify-content:center; font-size:28px; }
+  /* Shutter — a <label> that triggers the hidden file input */
+  #shutter { display:flex; width:74px; height:74px; border-radius:50%;
+    border:5px solid #fff; background:#fff;
+    box-shadow:0 0 0 4px rgba(255,255,255,.18); cursor:pointer;
+    align-items:center; justify-content:center; font-size:28px;
+    -webkit-user-select:none; user-select:none; }
   #shutter:active { transform:scale(.92); }
-
-  /* cameraInput is positioned off-screen; label #shutter triggers it */
 
   /* ── Gallery sheet ────────────────────────────────────────── */
   #sheet { position:fixed; inset:0; background:var(--bg); z-index:20; transform:translateY(100%);
@@ -173,12 +173,10 @@
         <span class="badge" id="countBadge" style="display:none">0</span>
       </div>
     </div>
-    <!-- Shutter: emoji sits visually; transparent file input covers it entirely -->
-    <div style="position:relative;width:74px;height:74px;">
-      <div id="shutter" aria-hidden="true">📸</div>
-      <input type="file" id="cameraInput" accept="image/*" capture="environment"
-             style="position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;z-index:2;">
-    </div>
+    <!-- Shutter: label triggers the hidden file input natively -->
+    <label id="shutter" for="cameraInput">📸</label>
+    <input type="file" id="cameraInput" accept="image/*"
+           style="position:fixed;left:-200vw;width:1px;height:1px;opacity:0;">
     <div class="side"><!-- spacer --></div>
   </div>
 
