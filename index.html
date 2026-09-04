@@ -74,8 +74,7 @@
     align-items:center; justify-content:center; font-size:28px; }
   #shutter:active { transform:scale(.92); }
 
-  /* Hidden file input — the real camera trigger */
-  #cameraInput { display:none; }
+  /* cameraInput is positioned off-screen; label #shutter triggers it */
 
   /* ── Gallery sheet ────────────────────────────────────────── */
   #sheet { position:fixed; inset:0; background:var(--bg); z-index:20; transform:translateY(100%);
@@ -174,13 +173,14 @@
         <span class="badge" id="countBadge" style="display:none">0</span>
       </div>
     </div>
-    <!-- Shutter: triggers native camera via file input -->
-    <button id="shutter" aria-label="Take photo">📸</button>
+    <!-- Shutter: label directly wired to file input — most reliable trigger on all phones -->
+    <label id="shutter" for="cameraInput" role="button" aria-label="Take photo">📸</label>
     <div class="side"><!-- spacer --></div>
   </div>
 
-  <!-- Native camera input — this always works on iOS and Android -->
-  <input type="file" id="cameraInput" accept="image/*" capture="environment">
+  <!-- Native camera input — the label above triggers this directly with no JS -->
+  <input type="file" id="cameraInput" accept="image/*" capture="environment"
+         style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0;">
 
   <!-- ── Details screen ── -->
   <div id="detailsScreen">
@@ -451,9 +451,7 @@ function clean(s)    { return (s||"").replace(/[^\p{L}\p{N}\s'-]/gu, "").replace
 function cleanRef(s) { return (s||"").replace(/[^\p{L}\p{N}\s#._-]/gu, "").replace(/\s+/g, " ").trim(); }
 
 // ── Wire up ───────────────────────────────────────────────────────────────────
-// Shutter button triggers the native camera input
-$("shutter").addEventListener("click", () => $("cameraInput").click());
-
+// Shutter is a <label for="cameraInput"> — browser handles the trigger natively.
 $("cameraInput").addEventListener("change", e => {
   const f = e.target.files && e.target.files[0];
   if (f) handlePhoto(f);
