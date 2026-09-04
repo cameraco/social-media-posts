@@ -1,4 +1,4 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -34,42 +34,51 @@
     align-items:center; justify-content:center; gap:16px; padding:24px; text-align:center; }
   #fallback p { color:var(--muted); max-width:320px; line-height:1.5; margin:0; }
 
-  /* top bar: name pill (left), status banner (center), submit (right) */
+  /* Top bar */
   #topBar { position:absolute; top:12px; left:12px; right:12px; z-index:5;
     display:flex; align-items:center; gap:8px; }
-
-  /* status banner */
   #banner { background:rgba(0,0,0,.55); backdrop-filter:blur(8px); border-radius:999px;
     padding:7px 16px; font-size:13px; color:#fff; display:flex; align-items:center; gap:8px;
-    flex:0 1 auto; min-width:0; margin:0 auto; max-width:100%; }
-  #banner #statusText { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
+    flex:1; min-width:0; overflow:hidden; }
+  #banner #statusText { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; flex:1; }
   .dot { width:8px; height:8px; border-radius:50%; background:var(--muted); flex:none; }
   .dot.on { background:var(--ok); }
   .dot.off { background:var(--err); }
 
-  /* flash animation on capture */
+  /* "Add Details" pill — appears after first photo is taken */
+  #detailsPill { background:var(--accent); border:none; border-radius:999px;
+    color:#fff; padding:8px 16px; font-size:14px; font-weight:700;
+    display:none; align-items:center; gap:6px; flex-shrink:0; white-space:nowrap; }
+  #detailsPill:active { filter:brightness(.88); }
+
+  /* Flash */
   #flash { position:absolute; inset:0; background:#fff; opacity:0; pointer-events:none; }
   #flash.fire { animation:flash .28s ease-out; }
   @keyframes flash { 0%{opacity:.9} 100%{opacity:0} }
 
-  /* ── Controls bar ─────────────────────────────────────────── */
+  /* Hint overlay — fades out after first photo */
+  #hint { position:absolute; bottom:calc(100px + env(safe-area-inset-bottom)); left:50%;
+    transform:translateX(-50%); background:rgba(0,0,0,.6); backdrop-filter:blur(8px);
+    border-radius:12px; padding:10px 18px; font-size:14px; color:rgba(255,255,255,.85);
+    text-align:center; pointer-events:none; transition:opacity .4s ease;
+    white-space:nowrap; }
+  #hint.hidden { opacity:0; }
+
+  /* ── Bottom controls ──────────────────────────────────────── */
   #controls { display:flex; align-items:center; justify-content:space-between;
     padding:18px 26px calc(18px + env(safe-area-inset-bottom)); gap:12px; background:var(--bg); }
-
   .side { width:56px; height:56px; display:flex; align-items:center; justify-content:center; }
   .iconbtn { width:52px; height:52px; border-radius:50%; border:none; background:var(--panel);
     color:#fff; font-size:22px; display:flex; align-items:center; justify-content:center; }
   .iconbtn:active { background:#20242b; }
   .thumbwrap { position:relative; width:52px; height:52px; border-radius:12px; overflow:hidden;
-    background:var(--panel); border:1px solid #2a2f37; }
+    background:var(--panel); border:1px solid #2a2f37; cursor:pointer; }
   .thumbwrap img { width:100%; height:100%; object-fit:cover; }
   .badge { position:absolute; top:-6px; right:-6px; min-width:20px; height:20px; padding:0 5px;
     border-radius:10px; background:var(--accent); color:#fff; font-size:12px; font-weight:700;
     display:flex; align-items:center; justify-content:center; }
-
-  /* shutter */
   #shutter { width:74px; height:74px; border-radius:50%; border:5px solid #fff; background:#fff;
-    box-shadow:0 0 0 4px rgba(255,255,255,.18); }
+    box-shadow:0 0 0 4px rgba(255,255,255,.18); cursor:pointer; }
   #shutter:active { transform:scale(.92); }
   #shutter:disabled { opacity:.4; }
 
@@ -81,7 +90,7 @@
   #sheet header { display:flex; align-items:center; justify-content:space-between; padding:16px 20px;
     border-bottom:1px solid #20242b; }
   #sheet header h2 { margin:0; font-size:17px; }
-  #closeSheet { background:none; border:none; color:var(--accent); font-size:16px; font-weight:600; }
+  #closeSheet { background:none; border:none; color:var(--accent); font-size:16px; font-weight:600; cursor:pointer; }
   #grid { flex:1; overflow-y:auto; display:grid; grid-template-columns:repeat(3,1fr); gap:4px;
     padding:4px; align-content:start; }
   .cell { position:relative; aspect-ratio:1; background:var(--panel); border-radius:6px; overflow:hidden; }
@@ -89,7 +98,6 @@
   .cell .state { position:absolute; bottom:4px; right:4px; width:22px; height:22px; border-radius:50%;
     display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700;
     background:rgba(0,0,0,.6); }
-  .cell .state.up { color:#fff; }
   .cell .state.ok { background:var(--ok); }
   .cell .state.err { background:var(--err); }
   .cell .ring { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; }
@@ -97,30 +105,45 @@
     border-radius:50%; animation:spin .8s linear infinite; }
   @keyframes spin { to { transform:rotate(360deg); } }
   .retry { position:absolute; inset:0; background:rgba(0,0,0,.55); border:none; color:#fff;
-    font-size:12px; font-weight:600; }
+    font-size:12px; font-weight:600; cursor:pointer; }
   #empty { grid-column:1/-1; text-align:center; color:var(--muted); padding:60px 20px; }
 
+  /* ── Buttons ──────────────────────────────────────────────── */
   .btn { background:var(--accent); color:#fff; border:none; border-radius:12px; padding:14px 22px;
-    font-size:16px; font-weight:600; }
+    font-size:16px; font-weight:600; width:100%; max-width:340px; cursor:pointer; }
   .btn:active { opacity:.85; }
+  .btn:disabled { opacity:.4; pointer-events:none; }
+  .btn-submit { background:var(--ok); color:#04120a; }
+  .btn-ghost { background:transparent; color:var(--muted); border:1px solid #2a2f37;
+    border-radius:12px; padding:13px 22px; font-size:15px; font-weight:600;
+    width:100%; max-width:340px; cursor:pointer; }
+  .btn-ghost:active { background:var(--panel); }
 
   #hiddenFile { display:none; }
 
-  /* name pill (left of top bar) */
-  #namePill { background:rgba(0,0,0,.55);
-    backdrop-filter:blur(8px); border:none; border-radius:999px; color:#fff;
-    padding:7px 14px; font-size:13px; font-weight:600; display:none; align-items:center; gap:7px;
-    flex:0 1 auto; min-width:0; max-width:42%; overflow:hidden; }
-  #namePill .who { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; flex:1; }
-  #namePill .edit { color:var(--accent); font-weight:700; flex-shrink:0; }
+  /* ── Details screen ───────────────────────────────────────── */
+  #detailsScreen { position:fixed; inset:0; z-index:30; background:var(--bg); overflow-y:auto;
+    display:none; flex-direction:column; align-items:center;
+    gap:16px; padding:32px calc(28px + env(safe-area-inset-left));
+    padding-top:calc(32px + env(safe-area-inset-top));
+    padding-bottom:calc(32px + env(safe-area-inset-bottom)); }
+  #detailsScreen .logo { width:72px; height:72px; border-radius:20px; object-fit:cover; margin-bottom:4px; }
+  #detailsScreen h1 { margin:0; font-size:22px; text-align:center; }
+  #detailsScreen .sub { margin:0; color:var(--muted); font-size:15px; text-align:center;
+    max-width:320px; line-height:1.5; }
+  .photo-summary { background:var(--panel); border:1px solid #2a2f37; border-radius:12px;
+    padding:12px 18px; font-size:14px; color:var(--ok); font-weight:600;
+    text-align:center; width:100%; max-width:340px; }
+  .field { width:100%; max-width:340px; }
+  .field label { display:block; font-size:13px; color:var(--muted); margin:0 0 6px 4px; }
+  .field input, .field textarea {
+    width:100%; background:var(--panel); border:1px solid #2a2f37; border-radius:12px;
+    color:#fff; font-size:17px; padding:14px 16px; outline:none; font-family:inherit; }
+  .field textarea { resize:vertical; min-height:110px; line-height:1.4; }
+  .field input:focus, .field textarea:focus { border-color:var(--accent); }
+  #detailsErr { color:var(--err); font-size:13px; min-height:16px; text-align:center; margin:0; }
 
-  /* submit / finish pill (right of top bar) */
-  #submitPill { background:var(--ok); border:none;
-    border-radius:999px; color:#04120a; padding:8px 16px; font-size:14px; font-weight:700;
-    display:none; align-items:center; gap:6px; flex-shrink:0; white-space:nowrap; }
-  #submitPill:active { filter:brightness(.92); }
-
-  /* done / submitted screen */
+  /* ── Done screen ──────────────────────────────────────────── */
   #doneScreen { position:fixed; inset:0; z-index:30; background:var(--bg);
     display:none; flex-direction:column; align-items:center; justify-content:center;
     gap:14px; padding:32px 28px; text-align:center; }
@@ -129,40 +152,30 @@
     color:#04120a; font-size:52px; font-weight:800; display:flex; align-items:center; justify-content:center; }
   #doneScreen h1 { margin:6px 0 0; font-size:24px; }
   #doneScreen .sub { margin:0; color:var(--muted); font-size:15px; max-width:320px; line-height:1.5; }
-  #doneScreen .btn { width:100%; max-width:320px; margin-top:10px; }
-
-  /* ── Name / reason entry screen ───────────────────────────── */
-  #nameScreen { position:fixed; inset:0; z-index:30; background:var(--bg); overflow-y:auto;
-    display:flex; flex-direction:column; align-items:center;
-    gap:18px; padding:32px calc(28px + env(safe-area-inset-left));
-    padding-top:calc(32px + env(safe-area-inset-top)); padding-bottom:calc(32px + env(safe-area-inset-bottom)); }
-  #nameScreen .logo { width:76px; height:76px; border-radius:20px; object-fit:cover; margin-bottom:4px; }
-  #nameScreen h1 { margin:0; font-size:22px; text-align:center; }
-  #nameScreen .sub { margin:0 0 6px; color:var(--muted); font-size:15px; text-align:center; max-width:320px; line-height:1.5; }
-  #nameScreen .field { width:100%; max-width:340px; }
-  #nameScreen label { display:block; font-size:13px; color:var(--muted); margin:0 0 6px 4px; }
-  #nameScreen input, #nameScreen textarea { width:100%; background:var(--panel); border:1px solid #2a2f37; border-radius:12px;
-    color:#fff; font-size:17px; padding:14px 16px; outline:none; font-family:inherit; }
-  #nameScreen textarea { resize:vertical; min-height:110px; line-height:1.4; }
-  #nameScreen input:focus, #nameScreen textarea:focus { border-color:var(--accent); }
-  #nameScreen .btn { width:100%; max-width:340px; margin-top:6px; }
-  #nameScreen .btn:disabled { opacity:.4; }
-  #nameErr { color:var(--err); font-size:13px; min-height:16px; text-align:center; margin:0; }
+  #doneScreen .btn { margin-top:10px; }
 </style>
 </head>
 <body>
 
+  <!-- ── Camera view (initial screen) ── -->
   <div id="stage">
     <video id="preview" playsinline autoplay muted></video>
     <div id="flash"></div>
+
     <div id="topBar">
-      <button id="namePill"><span class="who" id="whoText"></span><span class="edit">Change</span></button>
-      <div id="banner"><span class="dot" id="statusDot"></span><span id="statusText">Starting…</span></div>
-      <button id="submitPill">✓ Submit</button>
+      <div id="banner">
+        <span class="dot on" id="statusDot"></span>
+        <span id="statusText">Starting…</span>
+      </div>
+      <!-- Appears after first photo is taken -->
+      <button id="detailsPill">📝 Add Details</button>
     </div>
 
+    <!-- Hint: fades after first photo -->
+    <div id="hint">📸 Take a photo, then tap Add Details when they leave</div>
+
     <div id="fallback">
-      <p id="fallbackMsg">Tap below to open your camera and take a photo. It will upload automatically.</p>
+      <p>Tap below to take a photo of the customer. It uploads automatically.</p>
       <button class="btn" id="fallbackBtn">📷 Take Photo</button>
     </div>
   </div>
@@ -180,40 +193,45 @@
     </div>
   </div>
 
-  <!-- native camera fallback input -->
+  <!-- Native camera fallback -->
   <input type="file" id="hiddenFile" accept="image/*" capture="environment">
 
-  <!-- name + reason entry -->
-  <div id="nameScreen">
+  <!-- ── Details screen (filled after customer leaves) ── -->
+  <div id="detailsScreen">
     <img class="logo" src="icon.png" alt="">
-    <h1>Social Media Posts</h1>
-    <p class="sub">Who or what is this post about, and why should we post it? Then take a photo — it uploads automatically along with your caption.</p>
+    <h1>Complete the Post</h1>
+    <p class="sub">Great shot! Fill in the details below, then hit Submit.</p>
+    <div class="photo-summary" id="photoSummary">📷 0 photos ready to send</div>
     <div class="field">
       <label for="postName">Customer or employee name (or gear name)</label>
-      <input id="postName" type="text" autocomplete="off" autocapitalize="words" enterkeyhint="next" placeholder="e.g. Alyssa, or Canon EOS R6 V">
+      <input id="postName" type="text" autocomplete="off" autocapitalize="words"
+             enterkeyhint="next" placeholder="e.g. Alyssa, or Canon EOS R6 V">
     </div>
     <div class="field">
       <label for="empNumber">Your employee #</label>
-      <input id="empNumber" type="text" inputmode="numeric" autocapitalize="characters" enterkeyhint="next" placeholder="Your employee number">
+      <input id="empNumber" type="text" inputmode="numeric" autocapitalize="characters"
+             enterkeyhint="next" placeholder="Your employee number">
     </div>
     <div class="field">
       <label for="reason">Caption / reason for the post</label>
-      <textarea id="reason" enterkeyhint="done" placeholder="e.g. Alyssa stopped by during our Spring Sales Event and picked up an awesome new Sony camera setup! 📸 …"></textarea>
+      <textarea id="reason" enterkeyhint="done"
+        placeholder="e.g. Alyssa stopped by during our Spring Sales Event and picked up an awesome new Sony camera setup! 📸 …"></textarea>
     </div>
-    <p id="nameErr"></p>
-    <button class="btn" id="startBtn" disabled>Start Camera</button>
+    <p id="detailsErr"></p>
+    <button class="btn btn-submit" id="submitBtn" disabled>Submit Post</button>
+    <button class="btn-ghost" id="backToCamera">← Take More Photos</button>
   </div>
 
-  <!-- submitted / done -->
+  <!-- ── Done screen ── -->
   <div id="doneScreen">
     <div class="bigcheck">✓</div>
-    <h1>Post submitted</h1>
+    <h1>Post submitted!</h1>
     <p class="sub" id="doneSummary"></p>
-    <p class="sub">You can close the app now. To send another post, start a new one.</p>
+    <p class="sub">You can close the app now, or start a new post below.</p>
     <button class="btn" id="newUploadBtn">Start new post</button>
   </div>
 
-  <!-- gallery sheet -->
+  <!-- ── Gallery sheet ── -->
   <div id="sheet">
     <header>
       <h2>Photos this session</h2>
@@ -222,12 +240,12 @@
     <div id="grid"><div id="empty">No photos yet. Take one to get started.</div></div>
   </div>
 
-<!-- Firebase (compat build – single file, no bundler) -->
+<!-- Firebase (compat build) -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
 <script>
-// ── Firebase (same project as the Hub – task-manager-f5d20) ─────────────────
+// ── Firebase ────────────────────────────────────────────────────────────────
 const firebaseConfig = {
   apiKey: "AIzaSyBQMG2QKSnCl00jhx6V0Sjg9Vw245jj4xM",
   authDomain: "task-manager-f5d20.firebaseapp.com",
@@ -237,27 +255,27 @@ const firebaseConfig = {
   appId: "1:61238222049:web:850299b22690dc66902ba0"
 };
 firebase.initializeApp(firebaseConfig);
-const auth = firebase.auth();
+const auth    = firebase.auth();
 const storage = firebase.storage();
-const ROOT = "social-media-posts/";
+const ROOT    = "social-media-posts/";
 
-// ── State ───────────────────────────────────────────────────────────────────
-let authReady = false;
-let stream = null;
-let facing = "environment";           // back camera by default
+// ── State ────────────────────────────────────────────────────────────────────
+let authReady     = false;
+let stream        = null;
+let facing        = "environment";   // back camera by default
 let usingFallback = false;
-let count = 0;
-const items = [];                     // {id, url, status}
-let sessionFolder = "";               // e.g. "Alyssa — Emp 12 — 2026-07-26 14-30-05"
-let person = { name:"", emp:"", reason:"" };
+let count         = 0;
+const items       = [];              // { id, url, status, _blob }
+let sessionFolder = "";              // created on first photo
+let person        = { name:"", emp:"", reason:"" };
 
 const $ = id => document.getElementById(id);
-const preview   = $("preview");
-const shutter   = $("shutter");
-const statusDot = $("statusDot");
-const statusText= $("statusText");
+const preview    = $("preview");
+const shutter    = $("shutter");
+const statusDot  = $("statusDot");
+const statusText = $("statusText");
 
-// ── Sign in silently (invisible to the user) ────────────────────────────────
+// ── Auth ─────────────────────────────────────────────────────────────────────
 auth.onAuthStateChanged(u => {
   if (u) { authReady = true; setStatus("ready"); }
 });
@@ -266,21 +284,21 @@ auth.signInAnonymously().catch(err => {
   setStatus("noauth");
 });
 
-function setStatus(state){
+function setStatus(state) {
   const map = {
-    ready:   ["on",  "Ready — connected"],
-    camera:  ["on",  "Camera ready"],
-    nocam:   ["off", "Camera unavailable — using tap-to-shoot"],
-    noauth:  ["off", "Offline — check connection"],
-    start:   ["",    "Starting…"]
+    ready:  ["on",  "Ready — connected"],
+    camera: ["on",  "Camera ready"],
+    nocam:  ["off", "Camera unavailable — using tap-to-shoot"],
+    noauth: ["off", "Offline — check connection"],
+    start:  ["",    "Starting…"]
   };
   const [cls, txt] = map[state] || map.start;
   statusDot.className = "dot " + cls;
   statusText.textContent = txt;
 }
 
-// ── Camera ──────────────────────────────────────────────────────────────────
-async function startCamera(){
+// ── Camera ───────────────────────────────────────────────────────────────────
+async function startCamera() {
   stopCamera();
   try {
     stream = await navigator.mediaDevices.getUserMedia({
@@ -298,10 +316,12 @@ async function startCamera(){
     enableFallback();
   }
 }
-function stopCamera(){
-  if (stream){ stream.getTracks().forEach(t => t.stop()); stream = null; }
+
+function stopCamera() {
+  if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
 }
-function enableFallback(){
+
+function enableFallback() {
   usingFallback = true;
   preview.style.display = "none";
   $("fallback").style.display = "flex";
@@ -309,79 +329,100 @@ function enableFallback(){
   setStatus("nocam");
 }
 
-// ── Capture from live video ─────────────────────────────────────────────────
-function captureFromVideo(){
+// ── Capture ───────────────────────────────────────────────────────────────────
+function captureFromVideo() {
   if (!preview.videoWidth) return;
   const c = document.createElement("canvas");
-  c.width = preview.videoWidth;
+  c.width  = preview.videoWidth;
   c.height = preview.videoHeight;
   const ctx = c.getContext("2d");
-  if (facing === "user"){ ctx.translate(c.width,0); ctx.scale(-1,1); }
+  if (facing === "user") { ctx.translate(c.width, 0); ctx.scale(-1, 1); }
   ctx.drawImage(preview, 0, 0);
-  $("flash").classList.remove("fire"); void $("flash").offsetWidth; $("flash").classList.add("fire");
+  $("flash").classList.remove("fire");
+  void $("flash").offsetWidth;
+  $("flash").classList.add("fire");
   c.toBlob(blob => { if (blob) handlePhoto(blob); }, "image/jpeg", 0.9);
 }
 
-// ── Handle a photo (live or fallback) → upload ──────────────────────────────
-function handlePhoto(blob){
-  const id = Date.now() + "-" + Math.random().toString(36).slice(2,7);
+// ── Handle photo ──────────────────────────────────────────────────────────────
+function handlePhoto(blob) {
+  // Create session folder on the very first photo
+  if (!sessionFolder) {
+    sessionFolder = "Session — " + stamp(new Date());
+  }
+
+  const id       = Date.now() + "-" + Math.random().toString(36).slice(2, 7);
   const localUrl = URL.createObjectURL(blob);
-  const item = { id, url:localUrl, status:"up" };
+  const item     = { id, url: localUrl, status: "up" };
   items.unshift(item);
   count++;
+
+  // Update thumbnail + badge
   $("lastThumb").src = localUrl;
-  const badge = $("countBadge"); badge.style.display = "flex"; badge.textContent = count;
-  $("submitPill").style.display = "flex";     // reveal Submit once there's a photo
+  const badge = $("countBadge");
+  badge.style.display = "flex";
+  badge.textContent   = count;
+
+  // Show "Add Details" pill + hide hint
+  $("detailsPill").style.display = "flex";
+  $("hint").classList.add("hidden");
+
   renderGrid();
   uploadPhoto(item, blob);
 }
 
-function uploadPhoto(item, blob){
-  if (!authReady){
-    // wait briefly for anonymous sign-in, then try
-    return setTimeout(() => uploadPhoto(item, blob), 600);
-  }
-  const folder = sessionFolder || "Unnamed - " + stamp(new Date());
-  const fileName = stamp(new Date()) + " - " + item.id + ".jpg";
-  const ref = storage.ref(ROOT + folder + "/" + fileName);
-  const task = ref.put(blob, { contentType:"image/jpeg" });
+function uploadPhoto(item, blob) {
+  if (!authReady) return setTimeout(() => uploadPhoto(item, blob), 600);
+  const fileName = stamp(new Date()) + " — " + item.id + ".jpg";
+  const ref  = storage.ref(ROOT + sessionFolder + "/" + fileName);
+  const task = ref.put(blob, { contentType: "image/jpeg" });
   task.on("state_changed", null,
     err => { console.error("upload failed", err); setItemStatus(item, "err", blob); },
-    () => { setItemStatus(item, "ok"); }
+    ()  => { setItemStatus(item, "ok"); }
   );
 }
 
-function setItemStatus(item, status, blob){
+function setItemStatus(item, status, blob) {
   item.status = status;
-  item._blob = blob || item._blob;
+  item._blob  = blob || item._blob;
   renderGrid();
 }
 
-// ── Caption (stored once per session as a small JSON file) ──────────────────
-function uploadCaption(){
+// ── Upload caption/post metadata ─────────────────────────────────────────────
+function uploadCaption() {
   if (!authReady) return setTimeout(uploadCaption, 600);
-  const ref = storage.ref(ROOT + sessionFolder + "/post.json");
-  const payload = JSON.stringify({ name: person.name, emp: person.emp, reason: person.reason, submittedAt: new Date().toISOString() });
-  ref.putString(payload, "raw", { contentType:"application/json" })
+  const ref     = storage.ref(ROOT + sessionFolder + "/post.json");
+  const payload = JSON.stringify({
+    name:        person.name,
+    emp:         person.emp,
+    reason:      person.reason,
+    photoCount:  count,
+    submittedAt: new Date().toISOString()
+  });
+  ref.putString(payload, "raw", { contentType: "application/json" })
      .catch(err => console.error("caption upload failed", err));
 }
 
-// ── Gallery (this session's photo strip) ─────────────────────────────────────
-function renderGrid(){
+// ── Gallery ───────────────────────────────────────────────────────────────────
+function renderGrid() {
   const grid = $("grid");
-  if (!items.length){ grid.innerHTML = '<div id="empty">No photos yet. Take one to get started.</div>'; return; }
+  if (!items.length) {
+    grid.innerHTML = '<div id="empty">No photos yet. Take one to get started.</div>';
+    return;
+  }
   grid.innerHTML = "";
   items.forEach(item => {
     const cell = document.createElement("div");
     cell.className = "cell";
     cell.innerHTML = `<img src="${item.url}">`;
-    if (item.status === "up"){
+    if (item.status === "up") {
       cell.insertAdjacentHTML("beforeend", `<div class="ring"><div class="spin"></div></div>`);
-    } else if (item.status === "ok"){
+    } else if (item.status === "ok") {
       cell.insertAdjacentHTML("beforeend", `<div class="state ok">✓</div>`);
-    } else if (item.status === "err"){
+    } else if (item.status === "err") {
       const btn = document.createElement("button");
-      btn.className = "retry"; btn.textContent = "Tap to retry";
+      btn.className   = "retry";
+      btn.textContent = "Tap to retry";
       btn.onclick = () => { setItemStatus(item, "up"); uploadPhoto(item, item._blob); };
       cell.appendChild(btn);
     }
@@ -389,115 +430,110 @@ function renderGrid(){
   });
 }
 
-// ── Wire up controls ────────────────────────────────────────────────────────
-shutter.onclick = () => { usingFallback ? $("hiddenFile").click() : captureFromVideo(); };
+// ── Details form ──────────────────────────────────────────────────────────────
+function showDetails() {
+  stopCamera();
+  $("photoSummary").textContent = "📷 " + count + (count === 1 ? " photo ready to send" : " photos ready to send");
+  $("detailsScreen").style.display = "flex";
+}
+
+function hideDetails() {
+  $("detailsScreen").style.display = "none";
+  startCamera();
+}
+
+function validateDetails() {
+  const ok = clean($("postName").value) && cleanRef($("empNumber").value) && $("reason").value.trim();
+  $("submitBtn").disabled = !ok;
+  return ok;
+}
+
+function submitPost() {
+  person.name   = clean($("postName").value);
+  person.emp    = cleanRef($("empNumber").value);
+  person.reason = $("reason").value.trim();
+
+  if (!person.name || !person.emp || !person.reason) {
+    $("detailsErr").textContent = "Please fill in all fields before submitting.";
+    return;
+  }
+  $("detailsErr").textContent = "";
+  uploadCaption();
+
+  // Show done screen
+  $("detailsScreen").style.display = "none";
+  const uploading = items.filter(i => i.status === "up").length;
+  let msg = count + (count === 1 ? " photo" : " photos") + " sent for "" + person.name + "" (Emp " + person.emp + ").";
+  if (uploading) msg += " " + uploading + " still uploading — keep the app open a moment.";
+  $("doneSummary").textContent = msg;
+  $("doneScreen").classList.add("show");
+}
+
+// ── Reset for new post ────────────────────────────────────────────────────────
+function resetAll() {
+  items.length  = 0;
+  count         = 0;
+  sessionFolder = "";
+  person        = { name:"", emp:"", reason:"" };
+
+  $("lastThumb").removeAttribute("src");
+  $("countBadge").style.display  = "none";
+  $("detailsPill").style.display = "none";
+  $("hint").classList.remove("hidden");
+  $("postName").value   = "";
+  $("empNumber").value  = "";
+  $("reason").value     = "";
+  $("detailsErr").textContent = "";
+  $("submitBtn").disabled = true;
+
+  renderGrid();
+  $("doneScreen").classList.remove("show");
+  startCamera();
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function pad(n)  { return String(n).padStart(2, "0"); }
+function stamp(d) {
+  return d.getFullYear() + "-" + pad(d.getMonth()+1) + "-" + pad(d.getDate()) + " " +
+         pad(d.getHours()) + "-" + pad(d.getMinutes()) + "-" + pad(d.getSeconds());
+}
+function clean(s)    { return (s||"").replace(/[^\p{L}\p{N}\s'-]/gu, "").replace(/\s+/g, " ").trim(); }
+function cleanRef(s) { return (s||"").replace(/[^\p{L}\p{N}\s#._-]/gu, "").replace(/\s+/g, " ").trim(); }
+
+// ── Wire up controls ──────────────────────────────────────────────────────────
+shutter.onclick          = () => { usingFallback ? $("hiddenFile").click() : captureFromVideo(); };
 $("fallbackBtn").onclick = () => $("hiddenFile").click();
 $("hiddenFile").onchange = e => {
   const f = e.target.files && e.target.files[0];
   if (f) handlePhoto(f);
   e.target.value = "";
 };
-$("flipBtn").onclick = () => { facing = facing === "environment" ? "user" : "environment"; startCamera(); };
+$("flipBtn").onclick    = () => { facing = facing === "environment" ? "user" : "environment"; startCamera(); };
 $("galleryBtn").onclick = () => $("sheet").classList.add("open");
 $("closeSheet").onclick = () => $("sheet").classList.remove("open");
-$("submitPill").onclick = finishSession;
-$("newUploadBtn").onclick = () => { $("doneScreen").classList.remove("show"); showNameEntry(); };
 
-// pause camera when app backgrounded (saves battery), resume on return
-document.addEventListener("visibilitychange", () => {
-  const naming = $("nameScreen").style.display !== "none";
-  const done = $("doneScreen").classList.contains("show");
-  if (document.hidden) stopCamera();
-  else if (!usingFallback && !naming && !done) startCamera();
-});
+$("detailsPill").onclick = showDetails;
+$("backToCamera").onclick = hideDetails;
+$("submitBtn").onclick   = submitPost;
+$("newUploadBtn").onclick = resetAll;
 
-// ── Name/reason + session ────────────────────────────────────────────────────
-function pad(n){ return String(n).padStart(2,"0"); }
-// local, filesystem-safe "YYYY-MM-DD HH-MM-SS"
-function stamp(d){
-  return d.getFullYear() + "-" + pad(d.getMonth()+1) + "-" + pad(d.getDate()) + " " +
-         pad(d.getHours()) + "-" + pad(d.getMinutes()) + "-" + pad(d.getSeconds());
-}
-// strip characters that don't belong in a storage path; collapse spaces
-function clean(s){ return (s||"").replace(/[^\p{L}\p{N}\s'-]/gu,"").replace(/\s+/g," ").trim(); }
-// employee #: also allow # . _  but never "/" or the "—" folder delimiter
-function cleanRef(s){ return (s||"").replace(/[^\p{L}\p{N}\s#._-]/gu,"").replace(/\s+/g," ").trim(); }
-
-function startSession(){
-  resetPhotos();                       // fresh batch for the new post
-  $("doneScreen").classList.remove("show");
-  // folder delimiter is " — " (em dash); clean()/cleanRef() strip it from inputs
-  sessionFolder = clean(person.name) + " — Emp " + person.emp + " — " + stamp(new Date());
-  $("whoText").textContent = person.name + " · Emp " + person.emp;
-  $("namePill").style.display = "flex";
-  $("nameScreen").style.display = "none";
-  uploadCaption();
-  if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) startCamera();
-  else enableFallback();
-}
-
-// Clear the on-screen photo strip for a new session (uploaded files stay in the cloud)
-function resetPhotos(){
-  items.length = 0;
-  count = 0;
-  $("lastThumb").removeAttribute("src");
-  $("countBadge").style.display = "none";
-  $("submitPill").style.display = "none";
-  renderGrid();
-}
-
-// Submit = end this post and show the done screen
-function finishSession(){
-  stopCamera();
-  $("namePill").style.display = "none";
-  $("submitPill").style.display = "none";
-  const uploading = items.filter(i => i.status === "up").length;
-  let msg = count + (count === 1 ? " photo" : " photos") + " sent for “" + person.name + "” (Emp " + person.emp + ").";
-  if (uploading) msg += " " + uploading + " still finishing — keep the app open a few more seconds.";
-  $("doneSummary").textContent = msg;
-  $("doneScreen").classList.add("show");
-  try { window.close(); } catch(e){}   // best effort; iOS home-screen apps can't self-close
-}
-
-function showNameEntry(){
-  stopCamera();
-  $("namePill").style.display = "none";
-  // always start blank — each post is fresh
-  $("postName").value = "";
-  $("empNumber").value = "";
-  $("reason").value = "";
-  validateFields();
-  $("nameScreen").style.display = "flex";
-}
-
-function validateFields(){
-  const ok = clean($("postName").value) && cleanRef($("empNumber").value) && $("reason").value.trim();
-  $("startBtn").disabled = !ok;
-  return ok;
-}
-
-function commitFields(){
-  person.name   = clean($("postName").value);
-  person.emp    = cleanRef($("empNumber").value);
-  person.reason = $("reason").value.trim();
-  if (!person.name || !person.emp || !person.reason){
-    $("nameErr").textContent = "Please enter a name (or gear), your employee #, and a caption for the post.";
-    return;
-  }
-  $("nameErr").textContent = "";
-  startSession();
-}
-
-$("postName").addEventListener("input", validateFields);
-$("empNumber").addEventListener("input", validateFields);
-$("reason").addEventListener("input", validateFields);
+$("postName").addEventListener("input", validateDetails);
+$("empNumber").addEventListener("input", validateDetails);
+$("reason").addEventListener("input", validateDetails);
 $("postName").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); $("empNumber").focus(); } });
 $("empNumber").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); $("reason").focus(); } });
-$("startBtn").onclick = commitFields;
-$("namePill").onclick = showNameEntry;
 
-// ── Go ──────────────────────────────────────────────────────────────────────
-showNameEntry();     // always ask for a fresh name + caption each session
+// Pause camera when app is backgrounded
+document.addEventListener("visibilitychange", () => {
+  const inDetails = $("detailsScreen").style.display !== "none";
+  const inDone    = $("doneScreen").classList.contains("show");
+  if (document.hidden) stopCamera();
+  else if (!usingFallback && !inDetails && !inDone) startCamera();
+});
+
+// ── Go ────────────────────────────────────────────────────────────────────────
+startCamera();   // open camera immediately — no form first
 </script>
+
 </body>
 </html>
