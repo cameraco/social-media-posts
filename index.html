@@ -173,14 +173,14 @@
         <span class="badge" id="countBadge" style="display:none">0</span>
       </div>
     </div>
-    <!-- Shutter: label directly wired to file input — most reliable trigger on all phones -->
-    <label id="shutter" for="cameraInput" role="button" aria-label="Take photo">📸</label>
+    <!-- Shutter: input lives INSIDE the label — click label = click input, no JS needed -->
+    <label id="shutter" role="button" aria-label="Take photo">
+      📸
+      <input type="file" id="cameraInput" accept="image/*" capture="environment"
+             style="display:none;">
+    </label>
     <div class="side"><!-- spacer --></div>
   </div>
-
-  <!-- Native camera input — the label above triggers this directly with no JS -->
-  <input type="file" id="cameraInput" accept="image/*" capture="environment"
-         style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0;">
 
   <!-- ── Details screen ── -->
   <div id="detailsScreen">
@@ -280,28 +280,27 @@ function setStatus(state) {
 // the customer name and employee number once we know them.
 let sessionTimestamp = ""; // set on first photo, used in folder name at submit
 
-function handlePhoto(file) {
+function handlePhoto(file, dataUrl) {
   if (!sessionTimestamp) {
     sessionTimestamp = stamp(new Date());
   }
 
-  const id       = Date.now() + "-" + Math.random().toString(36).slice(2, 7);
-  const localUrl = URL.createObjectURL(file);
-  // status "pending" = waiting for submit before upload starts
-  const item     = { id, url: localUrl, status: "pending", _blob: file };
+  const id   = Date.now() + "-" + Math.random().toString(36).slice(2, 7);
+  // Use the data URL for display (universally supported on iOS/Android)
+  const item = { id, url: dataUrl, status: "pending", _blob: file };
   items.unshift(item);
   count++;
 
   // Show last photo in stage
   const prev = $("lastPreview");
-  prev.src = localUrl;
+  prev.src = dataUrl;
   prev.style.display = "block";
   $("readyIcon").style.display = "none";
   $("readyLabel").textContent = count === 1 ? "1 photo taken" : count + " photos taken";
   $("readyHint").textContent = "Press shutter again to add more, or tap Add Details when done";
 
   // Update thumbnail + badge
-  $("lastThumb").src = localUrl;
+  $("lastThumb").src = dataUrl;
   const badge = $("countBadge");
   badge.style.display = "flex";
   badge.textContent   = count;
@@ -451,11 +450,18 @@ function clean(s)    { return (s||"").replace(/[^\p{L}\p{N}\s'-]/gu, "").replace
 function cleanRef(s) { return (s||"").replace(/[^\p{L}\p{N}\s#._-]/gu, "").replace(/\s+/g, " ").trim(); }
 
 // ── Wire up ───────────────────────────────────────────────────────────────────
-// Shutter is a <label for="cameraInput"> — browser handles the trigger natively.
-$("cameraInput").addEventListener("change", e => {
-  const f = e.target.files && e.target.files[0];
-  if (f) handlePhoto(f);
-  e.target.value = ""; // reset so same photo can be re-selected if needed
+// Input is inside the label — browser triggers it natively on tap.
+$("cameraInput").addEventListener("change", function() {
+  const f = this.files && this.files[0];
+  if (!f) return;
+  // Read as data URL — most reliable on iOS Safari
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    handlePhoto(f, ev.target.result);
+  };
+  reader.readAsDataURL(f);
+  // Reset after a delay so the same photo can be retaken if needed
+  setTimeout(() => { try { this.value = ""; } catch(e) {} }, 500);
 });
 
 $("galleryBtn").addEventListener("click", () => $("sheet").classList.add("open"));
