@@ -135,6 +135,28 @@
   .field input:focus, .field textarea:focus { border-color:var(--accent); }
   #detailsErr { color:var(--err); font-size:13px; min-height:16px; text-align:center; margin:0; }
 
+  /* ── In-page camera viewfinder ──────────────────────────────── */
+  #viewfinder { position:fixed; inset:0; z-index:50; background:#000;
+    display:flex; flex-direction:column; }
+  #camVideo { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+  #vfControls { position:absolute; bottom:0; left:0; right:0;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:24px 32px calc(24px + env(safe-area-inset-bottom));
+    background:linear-gradient(transparent, rgba(0,0,0,.7)); }
+  #vfCapture { width:74px; height:74px; border-radius:50%; border:5px solid #fff;
+    background:#fff; font-size:32px; cursor:pointer;
+    box-shadow:0 0 0 4px rgba(255,255,255,.18);
+    display:flex; align-items:center; justify-content:center; }
+  #vfCapture:active { transform:scale(.92); }
+  #vfCancel { width:52px; height:52px; border-radius:50%; border:none;
+    background:rgba(0,0,0,.5); color:#fff; font-size:22px; cursor:pointer; }
+  #vfError { position:absolute; inset:0; background:rgba(0,0,0,.88);
+    display:none; flex-direction:column; align-items:center; justify-content:center;
+    padding:40px 32px; gap:20px; text-align:center; }
+  #vfErrorMsg { color:#fff; font-size:16px; line-height:1.6; margin:0; white-space:pre-line; }
+  #vfError button { background:var(--accent); color:#fff; border:none; border-radius:12px;
+    padding:13px 32px; font-size:16px; font-weight:600; cursor:pointer; }
+
   /* ── Done screen ──────────────────────────────────────────── */
   #doneScreen { position:fixed; inset:0; z-index:30; background:var(--bg);
     display:none; flex-direction:column; align-items:center; justify-content:center;
@@ -161,7 +183,7 @@
 
     <div id="readyIcon">📷</div>
     <div id="readyLabel">Ready to shoot</div>
-    <div id="readyHint">Press the shutter button below, then tap <strong style="color:#fff;">Take Photo</strong> to open the camera</div>
+    <div id="readyHint">Press the shutter button below to open the in-app camera, then tap the shutter inside the viewfinder to take a photo</div>
 
     <img id="lastPreview" alt="last photo">
   </div>
@@ -173,8 +195,9 @@
         <span class="badge" id="countBadge" style="display:none">0</span>
       </div>
     </div>
-    <!-- Shutter: label triggers file input natively — no JS required -->
-    <label id="shutter" for="cameraInput">📸</label>
+    <!-- Shutter: opens in-page camera viewfinder via getUserMedia -->
+    <button id="shutter" onclick="openCamera()">📸</button>
+    <!-- file input kept as last-resort fallback -->
     <input type="file" id="cameraInput" accept="image/*"
            style="position:fixed;left:-200vw;width:1px;height:1px;opacity:0;">
     <div class="side"><!-- spacer --></div>
@@ -222,6 +245,20 @@
       <button id="closeSheet">Done</button>
     </header>
     <div id="grid"><div id="empty">No photos yet. Take one to get started.</div></div>
+  </div>
+
+  <!-- ── In-page camera viewfinder ── -->
+  <div id="viewfinder" style="display:none">
+    <video id="camVideo" autoplay playsinline muted></video>
+    <div id="vfControls">
+      <button id="vfCancel" onclick="stopCamera()">✕</button>
+      <button id="vfCapture" onclick="captureFrame()">📸</button>
+      <div style="width:52px"></div>
+    </div>
+    <div id="vfError">
+      <p id="vfErrorMsg"></p>
+      <button onclick="stopCamera()">OK</button>
+    </div>
   </div>
 
 <!-- Firebase -->
@@ -290,7 +327,7 @@ function stamp(d) {
 function clean(s)    { return (s||"").replace(/[^\p{L}\p{N}\s'-]/gu, "").replace(/\s+/g, " ").trim(); }
 function cleanRef(s) { return (s||"").replace(/[^\p{L}\p{N}\s#._-]/gu, "").replace(/\s+/g, " ").trim(); }
 
-// Convert a data URL back to a Blob (for Firebase upload after a page reload)
+// Convert a data URL back to a Blob (used when restoring from sessionStorage)
 function dataUrlToBlob(dataUrl) {
   try {
     const [header, b64] = dataUrl.split(",");
@@ -347,7 +384,7 @@ function restoreSession() {
     $("lastPreview").style.display = "block";
     $("readyIcon").style.display   = "none";
     $("readyLabel").textContent    = count === 1 ? "1 photo taken" : count + " photos taken";
-    $("readyHint").innerHTML        = "Press shutter → tap <strong style='color:#fff'>Take Photo</strong> to add more, or tap Add Details when done";
+    $("readyHint").innerHTML        = "Press shutter to take more photos, or tap Add Details when done";
     $("lastThumb").src             = last.url;
     $("countBadge").style.display  = "flex";
     $("countBadge").textContent    = count;
@@ -358,46 +395,12 @@ function restoreSession() {
   }
 }
 
-// ── Compress photo before storing ─────────────────────────────────────────────
-// Shrinks to max 1200 px and re-encodes as JPEG ~75% quality so data URLs fit
-// comfortably in sessionStorage (typically < 400 KB each).
-function compressPhoto(file, callback) {
-  const objectUrl = URL.createObjectURL(file);
-  const img = new Image();
-  img.onload = function() {
-    URL.revokeObjectURL(objectUrl);
-    const MAX = 1200;
-    let w = img.naturalWidth, h = img.naturalHeight;
-    if (w > MAX || h > MAX) {
-      if (w >= h) { h = Math.round(h * MAX / w); w = MAX; }
-      else        { w = Math.round(w * MAX / h); h = MAX; }
-    }
-    const canvas = document.createElement("canvas");
-    canvas.width = w; canvas.height = h;
-    canvas.getContext("2d").drawImage(img, 0, 0, w, h);
-    canvas.toBlob(function(blob) {
-      if (!blob) { callback(file, null); return; } // fallback
-      const reader = new FileReader();
-      reader.onload = function(ev) { callback(blob, ev.target.result); };
-      reader.readAsDataURL(blob);
-    }, "image/jpeg", 0.75);
-  };
-  img.onerror = function() {
-    // If createObjectURL fails, fall back to FileReader on the original file
-    URL.revokeObjectURL(objectUrl);
-    const reader = new FileReader();
-    reader.onload = function(ev) { callback(file, ev.target.result); };
-    reader.readAsDataURL(file);
-  };
-  img.src = objectUrl;
-}
-
 // ── Handle photo from native camera ──────────────────────────────────────────
-function handlePhoto(blob, dataUrl) {
+function handlePhoto(file, dataUrl) {
   if (!sessionTimestamp) sessionTimestamp = stamp(new Date());
 
   const id   = Date.now() + "-" + Math.random().toString(36).slice(2, 7);
-  const item = { id, url: dataUrl, status: "pending", _blob: blob };
+  const item = { id, url: dataUrl, status: "pending", _blob: file };
   items.unshift(item);
   count++;
 
@@ -410,7 +413,7 @@ function handlePhoto(blob, dataUrl) {
   prev.style.display = "block";
   $("readyIcon").style.display = "none";
   $("readyLabel").textContent = count === 1 ? "1 photo taken" : count + " photos taken";
-  $("readyHint").innerHTML = "Press shutter → tap <strong style='color:#fff'>Take Photo</strong> to add more, or tap Add Details when done";
+  $("readyHint").innerHTML = "Press shutter to take more photos, or tap Add Details when done";
 
   // Update thumbnail + badge
   $("lastThumb").src = dataUrl;
@@ -543,7 +546,7 @@ function resetAll() {
   $("lastPreview").style.display = "none";
   $("readyIcon").style.display   = "";
   $("readyLabel").textContent    = "Ready to shoot";
-  $("readyHint").textContent     = "Press the shutter button below to open the camera and take a photo";
+  $("readyHint").textContent     = "Press the shutter button below to open the in-app camera and take a photo";
   $("postName").value   = "";
   $("empNumber").value  = "";
   $("reason").value     = "";
@@ -554,23 +557,110 @@ function resetAll() {
   $("doneScreen").classList.remove("show");
 }
 
+// ── In-page camera (getUserMedia — avoids iOS page-reload issue) ──────────────
+let camStream = null;
+
+function openCamera() {
+  statusDot.className    = "dot on";
+  statusText.textContent = "Opening camera…";
+  $("vfError").style.display = "none";
+  $("viewfinder").style.display = "flex";
+
+  navigator.mediaDevices.getUserMedia({
+    video: { facingMode: "environment", width: { ideal: 1920 }, height: { ideal: 1080 } },
+    audio: false
+  })
+  .then(function(stream) {
+    camStream = stream;
+    const vid = $("camVideo");
+    vid.srcObject = stream;
+    vid.play();
+    statusText.textContent = "Ready";
+  })
+  .catch(function(err) {
+    console.error("getUserMedia error:", err.name, err.message);
+    let msg;
+    if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
+      msg = "Camera access denied.\n\nTo fix this:\n1. Open the Settings app\n2. Scroll to Safari\n3. Tap Camera → Allow\n4. Come back here and try again.";
+    } else if (err.name === "NotFoundError" || err.name === "DevicesNotFoundError") {
+      msg = "No camera found on this device.";
+    } else if (err.name === "NotSupportedError" || err.name === "SecurityError") {
+      msg = "Camera not supported here.\nPlease open this page in Safari.";
+    } else if (err.name === "NotReadableError" || err.name === "TrackStartError") {
+      msg = "Camera is in use by another app.\nClose other apps and try again.";
+    } else {
+      msg = "Could not start camera.\n(" + err.name + ")";
+    }
+    $("vfErrorMsg").textContent = msg;
+    $("vfError").style.display = "flex";
+    statusText.textContent = "Camera error";
+  });
+}
+
+function stopCamera() {
+  if (camStream) {
+    camStream.getTracks().forEach(function(t) { t.stop(); });
+    camStream = null;
+  }
+  const vid = $("camVideo");
+  vid.pause();
+  vid.srcObject = null;
+  $("viewfinder").style.display = "none";
+  statusText.textContent = "Ready";
+}
+
+function captureFrame() {
+  const vid = $("camVideo");
+  if (!vid.videoWidth || !vid.videoHeight) return; // stream not ready
+
+  // Draw current frame to a canvas, then export as JPEG blob
+  const canvas = document.createElement("canvas");
+  canvas.width  = vid.videoWidth;
+  canvas.height = vid.videoHeight;
+  canvas.getContext("2d").drawImage(vid, 0, 0);
+
+  stopCamera(); // close viewfinder immediately so UI feels snappy
+
+  statusDot.className    = "dot on";
+  statusText.textContent = "Photo captured…";
+
+  canvas.toBlob(function(blob) {
+    if (!blob) {
+      statusText.textContent = "Capture failed — try again";
+      return;
+    }
+    const reader = new FileReader();
+    reader.onerror = function() {
+      statusText.textContent = "Error reading photo — try again";
+    };
+    reader.onload = function(ev) {
+      statusText.textContent = "Ready";
+      handlePhoto(blob, ev.target.result);
+    };
+    reader.readAsDataURL(blob);
+  }, "image/jpeg", 0.88);
+}
+
 // ── Wire up ───────────────────────────────────────────────────────────────────
 $("cameraInput").addEventListener("change", function() {
   const f = this.files && this.files[0];
   if (!f) return;
-  // Compress then store — survives iOS Safari page reload on camera return
-  compressPhoto(f, function(blob, dataUrl) {
-    if (dataUrl) {
-      handlePhoto(blob, dataUrl);
-    } else {
-      // compressPhoto fell back without a dataUrl — use FileReader directly
-      const reader = new FileReader();
-      reader.onload = function(ev) { handlePhoto(f, ev.target.result); };
-      reader.readAsDataURL(f);
-    }
-  });
-  // Reset input value after a delay so the same photo can be retaken
-  setTimeout(() => { try { this.value = ""; } catch(e) {} }, 500);
+
+  // Immediate visible feedback — confirms the change event fired
+  statusDot.className = "dot on";
+  statusText.textContent = "Photo received…";
+
+  const inp = this;
+  const reader = new FileReader();
+  reader.onerror = function() {
+    statusText.textContent = "Error reading photo — try again";
+  };
+  reader.onload = function(ev) {
+    statusText.textContent = "Ready";
+    handlePhoto(f, ev.target.result);
+    setTimeout(function() { try { inp.value = ""; } catch(e) {} }, 800);
+  };
+  reader.readAsDataURL(f);
 });
 
 // Restore any photos from before the last page reload
