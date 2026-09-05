@@ -196,7 +196,7 @@
       </div>
     </div>
     <!-- Shutter: opens in-page camera viewfinder via getUserMedia -->
-    <button id="shutter" onclick="openCamera()">📸</button>
+    <button id="shutter">📸</button>
     <!-- file input kept as last-resort fallback -->
     <input type="file" id="cameraInput" accept="image/*"
            style="position:fixed;left:-200vw;width:1px;height:1px;opacity:0;">
@@ -503,32 +503,32 @@ function validateDetails() {
 }
 
 function submitPost() {
-  person.name   = clean($(“postName”).value);
-  person.emp    = cleanRef($(“empNumber”).value);
-  person.reason = $(“reason”).value.trim();
+  person.name   = clean($("postName").value);
+  person.emp    = cleanRef($("empNumber").value);
+  person.reason = $("reason").value.trim();
 
   if (!person.name || !person.emp || !person.reason) {
-    $(“detailsErr”).textContent = “Please fill in all fields before submitting.”;
+    $("detailsErr").textContent = "Please fill in all fields before submitting.";
     return;
   }
-  $(“detailsErr”).textContent = “”;
+  $("detailsErr").textContent = "";
 
   // Build folder name now that we know the customer and employee
-  // e.g. “Alyssa — Emp 42 — 2024-06-01 10-30-00”
-  sessionFolder = person.name + “ — Emp “ + person.emp + “ — “ + sessionTimestamp;
+  // e.g. "Alyssa — Emp 42 — 2024-06-01 10-30-00"
+  sessionFolder = person.name + " — Emp " + person.emp + " — " + sessionTimestamp;
 
   // Kick off uploads for all pending photos
   items.forEach(item => {
-    if (item.status === “pending”) uploadPhoto(item, sessionFolder);
+    if (item.status === "pending") uploadPhoto(item, sessionFolder);
   });
 
   uploadCaption();
 
-  $(“detailsScreen”).style.display = “none”;
-  let msg = count + (count === 1 ? “ photo” : “ photos”) + “ sent for “” + person.name + “” (Emp “ + person.emp + “).”;
-  msg += “ Keep the app open a moment while they upload.”;
-  $(“doneSummary”).textContent = msg;
-  $(“doneScreen”).classList.add(“show”);
+  $("detailsScreen").style.display = "none";
+  let msg = count + (count === 1 ? " photo" : " photos") + " sent for \"" + person.name + "\" (Emp " + person.emp + ").";
+  msg += " Keep the app open a moment while they upload.";
+  $("doneSummary").textContent = msg;
+  $("doneScreen").classList.add("show");
 }
 
 // ── Reset ─────────────────────────────────────────────────────────────────────
@@ -561,40 +561,57 @@ function resetAll() {
 let camStream = null;
 
 function openCamera() {
-  statusDot.className    = "dot on";
-  statusText.textContent = "Opening camera…";
-  $("vfError").style.display = "none";
-  $("viewfinder").style.display = "flex";
+  try {
+    statusDot.className    = "dot on";
+    statusText.textContent = "Opening camera…";
+    $("vfError").style.display = "none";
+    $("viewfinder").style.display = "flex";
 
-  navigator.mediaDevices.getUserMedia({
-    video: { facingMode: "environment", width: { ideal: 1920 }, height: { ideal: 1080 } },
-    audio: false
-  })
-  .then(function(stream) {
-    camStream = stream;
-    const vid = $("camVideo");
-    vid.srcObject = stream;
-    vid.play();
-    statusText.textContent = "Ready";
-  })
-  .catch(function(err) {
-    console.error("getUserMedia error:", err.name, err.message);
-    let msg;
-    if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
-      msg = "Camera access denied.\n\nTo fix this:\n1. Open the Settings app\n2. Scroll to Safari\n3. Tap Camera → Allow\n4. Come back here and try again.";
-    } else if (err.name === "NotFoundError" || err.name === "DevicesNotFoundError") {
-      msg = "No camera found on this device.";
-    } else if (err.name === "NotSupportedError" || err.name === "SecurityError") {
-      msg = "Camera not supported here.\nPlease open this page in Safari.";
-    } else if (err.name === "NotReadableError" || err.name === "TrackStartError") {
-      msg = "Camera is in use by another app.\nClose other apps and try again.";
-    } else {
-      msg = "Could not start camera.\n(" + err.name + ")";
+    // getUserMedia not available (HTTP, old browser, etc.)
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      $("vfErrorMsg").textContent =
+        "In-app camera not supported in this browser.\n\nPlease open this page in Safari on your iPhone.";
+      $("vfError").style.display = "flex";
+      statusText.textContent = "Not supported";
+      return;
     }
-    $("vfErrorMsg").textContent = msg;
+
+    navigator.mediaDevices.getUserMedia({
+      video: { facingMode: "environment", width: { ideal: 1920 }, height: { ideal: 1080 } },
+      audio: false
+    })
+    .then(function(stream) {
+      camStream = stream;
+      const vid = $("camVideo");
+      vid.srcObject = stream;
+      vid.play();
+      statusText.textContent = "Ready";
+    })
+    .catch(function(err) {
+      console.error("getUserMedia error:", err.name, err.message);
+      let msg;
+      if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
+        msg = "Camera access was denied.\n\nTo fix this:\n1. Open the Settings app\n2. Scroll down to Safari\n3. Tap Camera → Allow\n4. Return here and try again.";
+      } else if (err.name === "NotFoundError" || err.name === "DevicesNotFoundError") {
+        msg = "No camera found on this device.";
+      } else if (err.name === "NotSupportedError" || err.name === "SecurityError") {
+        msg = "Camera not supported here.\nPlease open this page in Safari.";
+      } else if (err.name === "NotReadableError" || err.name === "TrackStartError") {
+        msg = "Camera is in use by another app.\nClose other apps and try again.";
+      } else {
+        msg = "Could not start camera: " + err.name + "\n" + err.message;
+      }
+      $("vfErrorMsg").textContent = msg;
+      $("vfError").style.display = "flex";
+      statusText.textContent = "Camera error";
+    });
+
+  } catch(e) {
+    // Catch any synchronous errors (shouldn't happen, but just in case)
+    $("vfErrorMsg").textContent = "Unexpected error: " + e.message;
     $("vfError").style.display = "flex";
-    statusText.textContent = "Camera error";
-  });
+    statusText.textContent = "Error";
+  }
 }
 
 function stopCamera() {
@@ -666,6 +683,7 @@ $("cameraInput").addEventListener("change", function() {
 // Restore any photos from before the last page reload
 restoreSession();
 
+$("shutter").addEventListener("click", openCamera);
 $("galleryBtn").addEventListener("click", () => $("sheet").classList.add("open"));
 $("closeSheet").addEventListener("click", () => $("sheet").classList.remove("open"));
 
