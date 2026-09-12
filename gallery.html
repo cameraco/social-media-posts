@@ -163,6 +163,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script>
 const firebaseConfig = {
@@ -191,6 +192,7 @@ const accountsFirebaseConfig = {
 };
 const accountsApp = firebase.initializeApp(accountsFirebaseConfig, 'cameraCompanyAccounts');
 const accountsAuth = accountsApp.auth();
+const accountsDb = accountsApp.firestore();
 
 // Same roster the Hub uses — lets people sign in with a username (e.g. "ward")
 // instead of an email, and gives each person's role (admin/manager can delete).
@@ -232,9 +234,25 @@ function showError(msg){ $("list").innerHTML = '<div class="center">'+msg+'</div
 auth.signInAnonymously().catch(() => {});
 
 // ── Gate the page behind a Camera Company employee login ────────────────────
-accountsAuth.onAuthStateChanged(user => {
+accountsAuth.onAuthStateChanged(async user => {
   if (user){
     const r = rosterByEmail(user.email || "");
+    // Check gallery access from Firestore (set via Hub Permissions page).
+    // For roster members with no Firestore record yet, access is allowed by default.
+    // A galleryAccess === false means an admin explicitly revoked it.
+    if (r) {
+      try {
+        const doc = await accountsDb.collection("accountUsers").doc(r.username).get();
+        const data = doc.exists ? (doc.data() || {}) : {};
+        if (data.galleryAccess === false) {
+          await accountsAuth.signOut();
+          $("loginErr").textContent = "You don't have gallery access. Ask an admin to enable it in the Hub Permissions page.";
+          return;
+        }
+      } catch(e) {
+        console.warn("Gallery access check failed, allowing by default", e);
+      }
+    }
     canDelete = !!r && (r.role === "admin" || r.role === "manager");
     $("login").classList.remove("show");
     if ($("whoami")) $("whoami").textContent = "Signed in as " + (r ? r.username : user.email) +
@@ -247,19 +265,50 @@ accountsAuth.onAuthStateChanged(user => {
   }
 });
 
-function doLogin(){
+async function doLogin(){
   const raw = $("username").value.trim();
   const pw = $("password").value;
   if (!raw || !pw){ $("loginErr").textContent = "Enter your username and password."; return; }
-  // accept a username from the roster, or an email directly as a fallback
+  $("loginErr").textContent = "";
+  $("loginBtn").disabled = true; $("loginBtn").textContent = "Signing in…";
+
+  // Resolve username → email. Try hardcoded roster first, then Firestore
+  // (so employees added via Hub Permissions don't need a code change here).
   let email = raw;
   if (!raw.includes("@")){
     const r = rosterByUsername(raw);
-    if (!r){ $("loginErr").textContent = "Unknown username. Use your Hub username (e.g. ward)."; return; }
-    email = r.email;
+    if (r){
+      email = r.email;
+    } else {
+      // Not in hardcoded roster — check Firestore for a Hub-managed account
+      // with this username that has gallery access explicitly granted.
+      try {
+        const doc = await accountsDb.collection("accountUsers").doc(raw.toLowerCase()).get();
+        if (!doc.exists){
+          $("loginErr").textContent = "Unknown username. Use your Hub username (e.g. ward).";
+          $("loginBtn").disabled = false; $("loginBtn").textContent = "Sign In";
+          return;
+        }
+        const data = doc.data() || {};
+        if (!data.galleryAccess){
+          $("loginErr").textContent = "You don't have gallery access. Ask an admin to enable it in the Hub Permissions page.";
+          $("loginBtn").disabled = false; $("loginBtn").textContent = "Sign In";
+          return;
+        }
+        email = data.authEmail || data.email;
+        if (!email){
+          $("loginErr").textContent = "No email on file for that username. Contact an admin.";
+          $("loginBtn").disabled = false; $("loginBtn").textContent = "Sign In";
+          return;
+        }
+      } catch(e){
+        $("loginErr").textContent = "Couldn't look up your account. Try again.";
+        $("loginBtn").disabled = false; $("loginBtn").textContent = "Sign In";
+        return;
+      }
+    }
   }
-  $("loginErr").textContent = "";
-  $("loginBtn").disabled = true; $("loginBtn").textContent = "Signing in…";
+
   accountsAuth.signInWithEmailAndPassword(email, pw)
     .catch(err => {
       const map = {
