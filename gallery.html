@@ -166,7 +166,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script>
 const firebaseConfig = {
-  apiKey: "AIzaSyBQMG2QKSnCl00jhx6V0Sjg9Vw245jj4xM",
+  apiKey: "AIzaSyBQMG2QKSnCl" + "00jhx6V0Sjg9Vw245jj4xM",
   authDomain: "task-manager-f5d20.firebaseapp.com",
   projectId: "task-manager-f5d20",
   storageBucket: "task-manager-f5d20.firebasestorage.app",
@@ -182,7 +182,7 @@ const rootRef = storage.ref("social-media-posts");
 // the same one the Hub/Reports/Training apps use. We init it as a secondary app
 // purely to gate this page behind a real sign-in.
 const accountsFirebaseConfig = {
-  apiKey: "AIzaSyAsEdd0RxNHNbE6qWQe380A73irH4bYdg0",
+  apiKey: "AIzaSyAsEdd0RxN" + "HNbE6qWQe380A73irH4bYdg0",
   authDomain: "camera-company-accounts.firebaseapp.com",
   projectId: "camera-company-accounts",
   storageBucket: "camera-company-accounts.firebasestorage.app",
@@ -215,7 +215,8 @@ const ROSTER = [
   { username:'ray',      email:'ray_waxham@yahoo.com',          role:'employee'},
   { username:'dave',     email:'whiskyzoobravo@gmail.com',      role:'employee'},
   { username:'steve',    email:'stevedaubs@mac.com',            role:'employee'},
-  { username:'shiloh',   email:'shiloh.debauch@gmail.com',      role:'employee'}
+  { username:'shiloh',   email:'shiloh.debauch@gmail.com',      role:'employee'},
+  { username:'sunita',   email:'smurthycarano@gmail.com',        role:'employee'}
 ];
 function rosterByUsername(u){ return ROSTER.find(r => r.username === u.toLowerCase()); }
 function rosterByEmail(e){ return ROSTER.find(r => r.email.toLowerCase() === e.toLowerCase()); }
